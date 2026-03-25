@@ -37,10 +37,10 @@ def ieladet_navigacijas_struktura():
     c_page = conn.cursor()
 
     struktūra = {}
-    for sec in c_sec.execute("SELECT id, nosaukums FROM sections ORDER BY kartiba").fetchall():
+    for sec in c_sec.execute("SELECT id, nosaukums FROM sections ORDER BY id").fetchall():
         nodaļas = {}
         for chap in c_chap.execute(
-                "SELECT id, nosaukums FROM chapters WHERE section_id=? ORDER BY kartiba",
+                "SELECT id, nosaukums FROM chapters WHERE section_id=? ORDER BY id",
                 (sec["id"],)).fetchall():
             lapas = [
                 r["lapa_num"]
@@ -80,7 +80,7 @@ def ieladet_challenge(section, chapter, lapa):
         conn.close()
         return None
     testi = c.execute(
-        "SELECT * FROM challenge_testi WHERE challenge_id=? ORDER BY kartiba",
+        "SELECT * FROM challenge_testi WHERE page_id=? ORDER BY id",
         (pid,)).fetchall()
     conn.close()
 
@@ -113,7 +113,7 @@ def ieladet_theory(section, chapter, lapa):
         conn.close()
         return None
     sekcijas = c.execute(
-        "SELECT * FROM theory_sections WHERE page_id=? ORDER BY kartiba",
+        "SELECT * FROM theory_sections WHERE page_id=? ORDER BY id",
         (pid,)).fetchall()
     conn.close()
     return {
@@ -134,7 +134,7 @@ def ieladet_test(section, chapter, lapa):
         conn.close()
         return None
     jautajumi_rows = c.execute(
-        "SELECT * FROM test_jautajumi WHERE test_id=? ORDER BY kartiba",
+        "SELECT * FROM test_jautajumi WHERE test_id=? ORDER BY id",
         (pid,)).fetchall()
 
     jautajumi = []
@@ -143,7 +143,7 @@ def ieladet_test(section, chapter, lapa):
             opcijas = [
                 o["teksts"]
                 for o in c.execute(
-                    "SELECT teksts FROM mc_opcijas WHERE jautajums_id=? ORDER BY kartiba",
+                    "SELECT teksts FROM mc_opcijas WHERE jautajums_id=? ORDER BY id",
                     (j["id"],))
             ]
             jautajumi.append({
@@ -155,7 +155,7 @@ def ieladet_test(section, chapter, lapa):
             })
         elif j["tips"] == "coding":
             tc_rows = c.execute(
-                "SELECT * FROM test_jaut_testi WHERE jautajums_id=? ORDER BY kartiba",
+                "SELECT * FROM test_jaut_testi WHERE jautajums_id=? ORDER BY id",
                 (j["id"],)).fetchall()
             test_cases = []
             for tc in tc_rows:
