@@ -8,7 +8,7 @@ import threading
 import sqlite3
 import json
 import os
-
+#asdchange
 #Datubāzes ceļš
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "TestDB.db")
 
