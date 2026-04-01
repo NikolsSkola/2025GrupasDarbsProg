@@ -304,6 +304,9 @@ LANG = {
     "d_sqlite_msg":     {"lv": "SQLite datubāze saglabāta:\n",    "en": "SQLite database saved:\n"},
     "d_excel_saved":    {"lv": "Saglabāts Excel",                 "en": "Excel Saved"},
     "d_excel_msg":      {"lv": "Excel fails saglabāts:\n",        "en": "Excel file saved:\n"},
+    "s_save_csv":       {"lv": "📋  Saglabāt .csv (Analīzei)",     "en": "📋  Save .csv (Analysis)"},
+    "d_csv_saved":      {"lv": "Saglabāts CSV",                    "en": "CSV Saved"},
+    "d_csv_msg":        {"lv": "CSV fails saglabāts:\n",           "en": "CSV file saved:\n"},
     "xl_summary":       {"lv": "Kopsavilkums",                    "en": "Summary"},
     "xl_gamelog":       {"lv": "Spēļu žurnāls",                   "en": "Game Log"},
     "xl_session":       {"lv": "Sesija",                          "en": "Session"},
@@ -1777,6 +1780,14 @@ class BlackjackGUI:
         _save_excel_btn.pack(fill=tk.X, pady=(3, 0))
         self._register_lang(_save_excel_btn, "s_save_excel")
 
+        # Save to CSV
+        _save_csv_btn = tk.Button(f, text=T("s_save_csv"), font=("Arial", 10, "bold"),
+                  bg="#5a7a3a", fg="white", bd=0, pady=6,
+                  cursor="hand2", relief=tk.FLAT, activebackground="#5a7a3a",
+                  command=self.save_stats_to_csv)
+        _save_csv_btn.pack(fill=tk.X, pady=(3, 0))
+        self._register_lang(_save_csv_btn, "s_save_csv")
+
         self.save_status_label = tk.Label(f, text="", font=("Arial", 8),
                                           bg=self.sb_bg, fg=self.success, wraplength=230)
         self.save_status_label.pack(anchor=tk.W, pady=(3, 0))
@@ -3084,6 +3095,92 @@ class BlackjackGUI:
             self.update_stats()
             self.save_status_label.config(text=f"✔ {fname}")
             messagebox.showinfo(T("d_saved"), T("d_saved_msg") + fpath)
+        except Exception as ex:
+            messagebox.showerror(T("d_error"), str(ex))
+
+    def save_stats_to_csv(self):
+        """Eksportē Auto-replay statistiku uz .csv failu Lejupielāžu mapē.
+        CSV satur vienu rindu uz spēlētāju ar: vārds, stratēģija, uzvaras, zaudējumi,
+        neizšķirts, kopā, uzv%. Ideāli piemērots korelācijas analīzei Bruno kalkulatorā."""
+        if not self._ar_per_player:
+            messagebox.showinfo(T("d_no_data"),
+                                {"lv": "Nav Auto-replay spēļu! Vispirms palaid Auto-replay.",
+                                 "en": "No Auto-replay games! Run Auto-replay first."
+                                 }.get(_current_lang, "No Auto-replay games!"))
+            return
+
+        import csv as _csv
+
+        ts    = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        fname = f"cardlab_stats_{ts}.csv"
+        fpath = os.path.join(_get_downloads_dir(), fname)
+
+        human_name    = self.player_name.get().strip() or T("default_player")
+        bot_name_list = []
+        for i in range(max(len(self.bot_wins), self.num_bots.get())):
+            n = (self.bot_names[i].get().strip()
+                 if i < len(self.bot_names) else "") or f"Bot {i+1}"
+            bot_name_list.append(n)
+
+        bot_strat_names = []
+        for i in range(len(bot_name_list)):
+            if hasattr(self, "_bot_preset_vars") and i < len(self._bot_preset_vars):
+                bot_strat_names.append(self._bot_preset_vars[i].get())
+            else:
+                bot_strat_names.append(T("p_basic"))
+
+        def resolve_key(key):
+            if key == "Player":
+                return human_name
+            if key.startswith("Bot "):
+                idx = int(key.split(" ")[1]) - 1
+                return bot_name_list[idx] if idx < len(bot_name_list) else key
+            return key
+
+        per_player = {resolve_key(k): v for k, v in self._ar_per_player.items()}
+
+        strat_map = {}
+        if self.human_plays.get() or self.player_wins > 0:
+            strat_map[human_name] = T("f_manual")
+        for i, bn in enumerate(bot_name_list):
+            strat_map[bn] = bot_strat_names[i] if i < len(bot_strat_names) else ""
+
+        try:
+            with open(fpath, "w", newline="", encoding="utf-8") as csvfile:
+                writer = _csv.writer(csvfile)
+
+                # Header row
+                writer.writerow([
+                    "Speletajs", "Strategija",
+                    "Uzvaras", "Zaudejumi", "Neizskirts", "Kopa",
+                    "Uzv_procenti",
+                    "Dealeris_uzvaras", "Neizskirts_kopa",
+                    "Spelu_skaits", "Datums"
+                ])
+
+                ts_display = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                total_games = self.game_number
+
+                for pname, counts in per_player.items():
+                    w  = counts.get("win",  0)
+                    l  = counts.get("lose", 0)
+                    d  = counts.get("draw", 0)
+                    t  = w + l + d
+                    pct = round(w / t * 100, 2) if t > 0 else 0.0
+                    writer.writerow([
+                        pname,
+                        strat_map.get(pname, ""),
+                        w, l, d, t,
+                        pct,
+                        self.dealer_wins,
+                        self.draws,
+                        total_games,
+                        ts_display
+                    ])
+
+            self.save_status_label.config(text=f"CSV")
+            messagebox.showinfo(T("d_csv_saved"), T("d_csv_msg") + fpath)
+
         except Exception as ex:
             messagebox.showerror(T("d_error"), str(ex))
 
