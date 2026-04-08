@@ -99,9 +99,18 @@ class LoginPage(tk.Frame):
             for row in reader:
                 if row["username"] == username and row["password"] == password:
                     self.master.geometry("400x380")
-                    self.master.show_frame(HubPage, username=username)
+                    mod = _load_module("nikols_app", FILE_NIKOLS)
+                    if mod is None:
+                        return
+                    top = tk.Toplevel(self.master)
+                    top.title("Programming Learning Platform — Nikols Gabriels")
+                    try:
+                        mod.PageNavigator(top)
+                    except Exception as e:
+                        messagebox.showerror("Error", str(e), parent=self.master)
+                        top.destroy()
                     return
-
+                
         messagebox.showerror("Error", "Invalid username or password")
 
 
@@ -152,93 +161,6 @@ class RegisterPage(tk.Frame):
 
         messagebox.showinfo("Success", "Account created")
         self.master.show_frame(LoginPage)
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# HUB PAGE  — same style as Bruno's WelcomePage
-# ──────────────────────────────────────────────────────────────────────────────
-class HubPage(tk.Frame):
-    def __init__(self, master, username=""):
-        super().__init__(master, bg="#2b2b2b")
-
-        # Logout — top-right, identical to Bruno's WelcomePage
-        logout = tk.Label(self, text="Logout",
-                          font=("Arial", 10, "underline"),
-                          fg="#f44336", bg="#2b2b2b", cursor="hand2")
-        logout.place(relx=1.0, x=-10, y=10, anchor="ne")
-        logout.bind("<Button-1>", lambda e: (master.geometry("400x300"),
-                                             master.show_frame(LoginPage)))
-
-        tk.Label(self, text=f"Welcome, {username}!",
-                 font=("Arial", 22, "bold"), fg="white", bg="#2b2b2b").pack(pady=30)
-
-        tk.Button(self,
-                  text="Open Programming Learning Platform",
-                  font=("Arial", 12), bg="#2196F3", fg="white",
-                  command=self._open_nikols).pack(pady=8)
-
-        tk.Button(self,
-                  text="Open CardLab — Blackjack Simulator",
-                  font=("Arial", 12), bg="#2196F3", fg="white",
-                  command=self._open_dastins).pack(pady=8)
-
-        tk.Button(self,
-                  text="Open Data Calculators",
-                  font=("Arial", 12), bg="#2196F3", fg="white",
-                  command=self._open_bruno).pack(pady=8)
-
-    # ── launchers ────────────────────────────────────────────────────────────
-    def _open_nikols(self):
-        mod = _load_module("nikols_app", FILE_NIKOLS)
-        if mod is None:
-            return
-        top = tk.Toplevel(self.master)
-        top.title("Programming Learning Platform — Nikols Gabriels")
-        try:
-            mod.PageNavigator(top)
-        except Exception as e:
-            messagebox.showerror("Error", str(e), parent=self.master)
-            top.destroy()
-
-    def _open_dastins(self):
-        mp.freeze_support()
-        mod = _load_module("dastins_app", FILE_DASTINS)
-        if mod is None:
-            return
-        top = tk.Toplevel(self.master)
-        top.title("CardLab — Dastins Jevdokimovs")
-        try:
-            mod.BlackjackGUI(top)
-        except Exception as e:
-            messagebox.showerror("Error", str(e), parent=self.master)
-            top.destroy()
-
-    def _open_bruno(self):
-        mod = _load_module("bruno_app", FILE_BRUNO)
-        if mod is None:
-            return
-        top = tk.Toplevel(self.master)
-        top.title("Data Calculators — Bruno Kumpins")
-        top.geometry("400x300")
-        top.configure(bg="#2b2b2b")
-
-        close = tk.Label(top, text="Close",
-                         font=("Arial", 10, "underline"),
-                         fg="#f44336", bg="#2b2b2b", cursor="hand2")
-        close.place(relx=1.0, x=-10, y=10, anchor="ne")
-        close.bind("<Button-1>", lambda e: top.destroy())
-
-        tk.Label(top, text="Data Calculators",
-                 font=("Arial", 22, "bold"), fg="white", bg="#2b2b2b").pack(pady=30)
-
-        tk.Button(top, text="Open Correlation Coefficient Calculator",
-                  font=("Arial", 12), bg="#2196F3", fg="white",
-                  command=lambda: mod.CCalcWindow(top)).pack(pady=8)
-
-        tk.Button(top, text="Open Normal Distribution Calculator",
-                  font=("Arial", 12), bg="#2196F3", fg="white",
-                  command=lambda: mod.NormDist(top)).pack(pady=8)
-
 
 # ══════════════════════════════════════════════════════════════════════════════
 if __name__ == "__main__":

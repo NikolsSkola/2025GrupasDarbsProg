@@ -324,17 +324,17 @@ class PageNavigator:
                                      values=[f"{section}|{chapter}|{page}"])
 
         # ── Hardkodēta sadaļa: Datu analīze dzīvē ──────────────────────────
-        DATU_SECTION = "Datu analīze dzīvē"
+        DATU_SECTION = "Noderīgi rīki"
         datu_id = self.tree.insert("", "end", text=f" {DATU_SECTION}",
                                    values=[DATU_SECTION], tags=('section',))
         if DATU_SECTION in expanded:
             self.tree.item(datu_id, open=True)
 
         self.tree.insert(datu_id, "end",
-                         text="  ♠  CardLab — Blackjack Simulators",
+                         text="  CardLab — Spēle datu vākšanai",
                          values=["DATU_ANĀLĪZE|cardlab"])
         self.tree.insert(datu_id, "end",
-                         text="  📊  Datu Kalkulatori",
+                         text=" Datu Kalkulatori",
                          values=["DATU_ANĀLĪZE|kalkulatori"])
 
     def refresh_sidebar(self):
