@@ -226,6 +226,45 @@ def run_with_timeout(func, args=(), kwargs={}, timeout_duration=5):
     
     return result['completed']
 
+
+# ─── Drošā input() funkcija test izpildei ────────────────────────────────
+def _normalize_inputs(raw):
+    """Pārvērš ievaddatus secīgu vērtību sarakstā stdin imitācijai.
+
+    Dict → vērtības insert order secībā ({"a":5,"b":10} → [5, 10])
+    List → tāds pats saraksts ([5, 10] → [5, 10])
+    None vai cits → tukšs saraksts.
+    """
+    if raw is None:
+        return []
+    if isinstance(raw, dict):
+        return list(raw.values())
+    if isinstance(raw, list):
+        return list(raw)
+    return [raw]
+
+
+def make_safe_input(values):
+    """Atgriež input() aizvietotāju, kas pa kārtai izsniedz padotās vērtības.
+
+    Tāpat kā īstā input(), tas vienmēr atgriež string. Ja kods pieprasa
+    vairāk vērtību nekā ir pieejamas, raisa EOFError ar skaidru paziņojumu.
+    """
+    iterator = iter(values)
+
+    def safe_input(prompt=''):
+        try:
+            value = next(iterator)
+        except StopIteration:
+            raise EOFError(
+                "Pieprasīts vairāk input() vērtību nekā tests piedāvā. "
+                "Pārbaudi, cik reizes tavs kods izsauc input()."
+            )
+        return str(value)
+
+    return safe_input
+
+
 class PageNavigator:
     def __init__(self, root):
         self.root = root
@@ -236,13 +275,14 @@ class PageNavigator:
         self.blocked_imports = {
             'os', 'sys', 'subprocess', 'shutil', 'socket', 'urllib',
             'requests', 'pickle', 'shelve', 'importlib', '__import__',
-            'eval', 'exec', 'compile', 'open', 'file', 'input',
+            'eval', 'exec', 'compile', 'open', 'file',
             'multiprocessing', 'threading', 'ctypes', 'pty', 'commands'
         }
         
+        # input() ir atļauts — to aizvieto ar drošu versiju, kas lasa no test_case.input
         self.blocked_builtins = {
             '__import__', 'eval', 'exec', 'compile', 'open', 
-            'input', 'execfile', 'reload', 'file'
+            'execfile', 'reload', 'file'
         }
         
         self.max_execution_time = 5
@@ -577,8 +617,13 @@ class PageNavigator:
             expected_label.pack(anchor='w', pady=(0, 5))
             
             if first_test['input']:
-                input_str = ", ".join([f"{k}={v}" for k, v in first_test['input'].items()])
-                input_label = tk.Label(left_frame, text=f"Ievaddati: {input_str}", 
+                _vals = _normalize_inputs(first_test['input'])
+                if isinstance(first_test['input'], dict):
+                    hint = ", ".join([f"{k}={v}" for k, v in first_test['input'].items()])
+                    label_text = f"Ievade (caur input()): {hint}"
+                else:
+                    label_text = f"Ievade (caur input()): {', '.join(str(v) for v in _vals)}"
+                input_label = tk.Label(left_frame, text=label_text, 
                                       font=('Arial', 10), bg='white', fg='gray')
                 input_label.pack(anchor='w', padx=10)
             
@@ -953,14 +998,13 @@ class PageNavigator:
                     'enumerate': enumerate, 'zip': zip
                 }
                 
+                # Aizvieto input() ar drošu versiju, kas izsniedz testa vērtības
+                safe_builtins['input'] = make_safe_input(_normalize_inputs(test_case['input']))
+                
                 restricted_globals = {
                     '__builtins__': safe_builtins,
                     '__name__': '__main__',
                 }
-                
-                # Pievienot ievaddatus kā mainīgos
-                if test_case['input']:
-                    restricted_globals.update(test_case['input'])
                 
                 start_time = time.time()
                 
@@ -1151,14 +1195,13 @@ class PageNavigator:
                     'reversed': reversed
                 }
                 
+                # Aizvieto input() ar drošu versiju, kas izsniedz testa vērtības
+                safe_builtins['input'] = make_safe_input(_normalize_inputs(test_case['input']))
+                
                 restricted_globals = {
                     '__builtins__': safe_builtins,
                     '__name__': '__main__',
                 }
-                
-                # Pievienot ievaddatus
-                if test_case['input']:
-                    restricted_globals.update(test_case['input'])
                 
                 start_time = time.time()
                 
@@ -1184,8 +1227,11 @@ class PageNavigator:
                 self.output_text.insert(tk.END, f"─── {test_header} ───\n")
                 
                 if test_case['input']:
-                    input_str = ", ".join([f"{k}={v}" for k, v in test_case['input'].items()])
-                    self.output_text.insert(tk.END, f"Ievaddati: {input_str}\n")
+                    if isinstance(test_case['input'], dict):
+                        input_str = ", ".join([f"{k}={v}" for k, v in test_case['input'].items()])
+                    else:
+                        input_str = ", ".join(str(v) for v in _normalize_inputs(test_case['input']))
+                    self.output_text.insert(tk.END, f"Ievade (caur input()): {input_str}\n")
                 
                 self.output_text.insert(tk.END, f"Izvade: {user_output}")
                 
