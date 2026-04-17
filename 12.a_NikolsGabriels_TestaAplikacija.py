@@ -220,7 +220,7 @@ class PageNavigator:
         self.blocked_imports = {
             'os', 'sys', 'subprocess', 'shutil', 'socket', 'urllib',
             'requests', 'pickle', 'shelve', 'importlib', '__import__',
-            'eval', 'exec', 'compile', 'open', 'file', 'input',
+            'eval', 'exec', 'compile', 'open', 'file',
             'multiprocessing', 'threading', 'ctypes', 'pty', 'commands'
         }
         
