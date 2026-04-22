@@ -1,28 +1,13 @@
-"""
-admin.py  —  TestDB.db administratora logs
-──────────────────────────────────────────
-Vienkāršs Tkinter administratora rīks visu tabulu rediģēšanai.
-
-Novieto šo failu tajā pašā mapē, kur atrodas:
-  TestDB.db
-  launcher.py
-  12_a_NikolsGabriels_TestaAplikacija.py
-  utt.
-
-Palaist:  python admin.py
-"""
-
 import os
 import sqlite3
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-# ─── Faila ceļš ──────────────────────────────────────────────────────────────
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH  = os.path.join(THIS_DIR, "TestDB.db")
 
 
-# ─── DB savienojums ──────────────────────────────────────────────────────────
+#DB savienojums
 def db():
     if not os.path.exists(DB_PATH):
         raise FileNotFoundError(
@@ -33,10 +18,6 @@ def db():
     conn.row_factory = sqlite3.Row
     return conn
 
-
-# ─── Entītāšu apraksti ───────────────────────────────────────────────────────
-# Katrai entītātei: tabulas nosaukums, lasāmais nosaukums un formas lauki.
-# Lauks: (kolonna, etiķete, vidžeta tips, [opcijas])
 ENTITY = {
     "section": {
         "table": "sections",
@@ -125,12 +106,12 @@ ENTITY = {
     },
 }
 
-# Skaitliskās kolonnas (lai pareizi konvertētu no ievades)
+# Skaitliskās kolonnas (lai pareizi pārveidotu no ievades)
 INT_COLS   = {"lapa_num", "punkti", "nokartosanas_sl", "pareiza_atbilde"}
 FLOAT_COLS = {"max_laiks"}
 
 
-# ─── Koka navigācija ────────────────────────────────────────────────────────
+#Koka navigācija
 def get_children(node_type, node_id):
     """Atgriež [(bērna_tips, bērna_id, etiķete), ...]."""
     conn = db()
@@ -205,7 +186,6 @@ def get_children(node_type, node_id):
                                 f"[#{r['id']}] [{r['tips']}] {snippet}"))
 
         elif node_type == "test":
-            # NB: test_jautajumi.test_id glabā page_id, nevis tests.id
             row = conn.execute("SELECT page_id FROM tests WHERE id=?", (node_id,)).fetchone()
             if row:
                 for r in conn.execute(
@@ -267,8 +247,6 @@ def addable_children(node_type, node_id):
             return ["test_jaut_test"]
     return []
 
-
-# ─── Pievienošana ar saprātīgiem noklusējumiem ──────────────────────────────
 def insert_child(parent_type, parent_id, child_type):
     conn = db()
     try:
@@ -326,7 +304,6 @@ def insert_child(parent_type, parent_id, child_type):
                       (page_id, "text", "Jauns teksta saturs"))
 
         elif child_type == "test_jautajums":
-            # NB: test_jautajumi.test_id glabā page_id, nevis tests.id
             page_id = c.execute("SELECT page_id FROM tests WHERE id=?",
                                 (parent_id,)).fetchone()[0]
             c.execute(
@@ -355,9 +332,9 @@ def insert_child(parent_type, parent_id, child_type):
         conn.close()
 
 
-# ─── Kaskādes dzēšana ───────────────────────────────────────────────────────
+#Kaskādes dzēšana
 def delete_node(node_type, node_id):
-    # Vispirms rekursīvi izdzēš visus bērnus
+    # Vispirms izdzēš visus bērnus
     for ct, cid, _ in get_children(node_type, node_id):
         delete_node(ct, cid)
 
@@ -387,7 +364,7 @@ def delete_node(node_type, node_id):
         conn.close()
 
 
-# ─── Lasīšana / saglabāšana ─────────────────────────────────────────────────
+#Lasīšana / saglabāšana
 def load_record(node_type, node_id):
     table = ENTITY[node_type]["table"]
     conn = db()
@@ -427,10 +404,8 @@ def save_record(node_type, node_id, values):
     finally:
         conn.close()
 
-
-# ═══════════════════════════════════════════════════════════════════════════
 # Galvenais logs
-# ═══════════════════════════════════════════════════════════════════════════
+
 class AdminApp(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -448,7 +423,7 @@ class AdminApp(tk.Tk):
 
         self.refresh_tree()
 
-    # ─── UI uzbūve ───────────────────────────────────────────────────────
+    #Saskarne
     def _build_toolbar(self):
         bar = tk.Frame(self, padx=6, pady=6)
         bar.pack(fill="x")
@@ -469,7 +444,6 @@ class AdminApp(tk.Tk):
         paned = tk.PanedWindow(self, orient="horizontal", sashrelief="raised", sashwidth=4)
         paned.pack(fill="both", expand=True, padx=6, pady=2)
 
-        # Koka rāmis
         tree_frame = tk.Frame(paned)
         self.tree = ttk.Treeview(tree_frame, show="tree", selectmode="browse")
         ysb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
@@ -501,7 +475,6 @@ class AdminApp(tk.Tk):
     def set_status(self, msg):
         self.status.config(text=msg)
 
-    # ─── Iid utilītas ────────────────────────────────────────────────────
     @staticmethod
     def parse_iid(iid):
         if not iid:
@@ -509,7 +482,7 @@ class AdminApp(tk.Tk):
         t, i = iid.split(":", 1)
         return (t, int(i))
 
-    # ─── Koka pārzīmēšana ───────────────────────────────────────────────
+
     def refresh_tree(self):
         # saglabā stāvokli
         sel = self.tree.selection()
@@ -531,7 +504,6 @@ class AdminApp(tk.Tk):
             messagebox.showerror("Kļūda", f"Neizdevās ielādēt datubāzi:\n{e}")
             return
 
-        # atjauno
         def restore(node):
             for c in self.tree.get_children(node):
                 if c in expanded:
@@ -556,7 +528,7 @@ class AdminApp(tk.Tk):
             self.tree.insert(parent_iid, "end", iid=iid, text=label)
             self._populate(iid, ct, cid)
 
-    # ─── Atlase un formas attēlošana ────────────────────────────────────
+    #Atlase un formas attēlošana
     def on_select(self, _event=None):
         sel = self.tree.selection()
         if not sel:
@@ -589,7 +561,6 @@ class AdminApp(tk.Tk):
 
         ttk.Separator(self.form_outer, orient="horizontal").pack(fill="x", padx=12)
 
-        # Ritināms ķermenis (lai garas formas neizjauc logu)
         body_outer = tk.Frame(self.form_outer)
         body_outer.pack(fill="both", expand=True, padx=12, pady=8)
 
@@ -664,7 +635,6 @@ class AdminApp(tk.Tk):
                 out[col] = w.get()
         return out
 
-    # ─── Darbības ───────────────────────────────────────────────────────
     def on_save(self):
         if self.current_type is None:
             self.set_status("Nav izvēlēts neviens ieraksts.")
@@ -748,7 +718,7 @@ class AdminApp(tk.Tk):
             messagebox.showerror("Kļūda dzēšot", str(e))
 
 
-# ─── Tipa izvēles dialogs ───────────────────────────────────────────────
+#Tipa izvēle
 class ChooseTypeDialog(tk.Toplevel):
     def __init__(self, master, options):
         super().__init__(master)
@@ -764,23 +734,22 @@ class ChooseTypeDialog(tk.Toplevel):
                            value=o).pack(anchor="w", padx=20)
 
         bf = tk.Frame(self); bf.pack(pady=12)
-        tk.Button(bf, text="OK", width=10, command=self._ok).pack(side="left", padx=5)
-        tk.Button(bf, text="Atcelt", width=10, command=self._cancel).pack(side="left", padx=5)
+        tk.Button(bf, text="OK", width=10, command=self.ok).pack(side="left", padx=5)
+        tk.Button(bf, text="Atcelt", width=10, command=self.cancel).pack(side="left", padx=5)
 
         self.transient(master)
         self.grab_set()
-        self.bind("<Return>", lambda _e: self._ok())
-        self.bind("<Escape>", lambda _e: self._cancel())
+        self.bind("<Return>", lambda _e: self.ok())
+        self.bind("<Escape>", lambda _e: self.cancel())
         self.wait_window(self)
 
-    def _ok(self):
+    def ok(self):
         self.result = self.var.get()
         self.destroy()
 
-    def _cancel(self):
+    def cancel(self):
         self.destroy()
 
 
-# ═══════════════════════════════════════════════════════════════════════════
 if __name__ == "__main__":
     AdminApp().mainloop()

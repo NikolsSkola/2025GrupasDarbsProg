@@ -1,14 +1,3 @@
-"""
-launcher.py  —  12a Project Launcher
-────────────────────────────────────
-Place this file in the SAME folder as:
-  12a_bruno_kumpins_datu_izstrade.py
-  12_a_NikolsGabriels_TestaAplikacija.py
-  Dastins_Jevdokimovs_12a_blackjack_cardlab_v22.py
-  TestDB.db
-  users.csv  (auto-created on first run)
-"""
-
 import tkinter as tk
 from tkinter import messagebox
 import csv
@@ -16,23 +5,20 @@ import os
 import importlib.util
 import multiprocessing as mp
 
-# ── File paths ──────────────────────────────────────────────────────────────
 THIS_DIR     = os.path.dirname(os.path.abspath(__file__))
 CSV_FILE     = os.path.join(THIS_DIR, "users.csv")
 FILE_NIKOLS  = os.path.join(THIS_DIR, "12.a_NikolsGabriels_TestaAplikacija.py")
 FILE_DASTINS = os.path.join(THIS_DIR, "Dastins_Jevdokimovs_12a_blackjack_cardlab_v22.py")
 FILE_BRUNO   = os.path.join(THIS_DIR, "12a_bruno_kumpins_datu_izstrade.py")
 
-
-# ── CSV helpers ──────────────────────────────────────────────────────────────
+#CSV helpers
 def init_csv():
     if not os.path.exists(CSV_FILE):
         with open(CSV_FILE, "w", newline="") as f:
             csv.writer(f).writerow(["username", "password"])
 
-
-# ── Module loader ────────────────────────────────────────────────────────────
-def _load_module(name, path):
+#Module loader
+def loadModule(name, path):
     if not os.path.exists(path):
         messagebox.showerror("File not found",
                              f"Cannot find:\n{path}\n\n"
@@ -43,14 +29,12 @@ def _load_module(name, path):
     spec.loader.exec_module(mod)
     return mod
 
+#Galvenā aplikācija
 
-# ══════════════════════════════════════════════════════════════════════════════
-# MAIN APP
-# ══════════════════════════════════════════════════════════════════════════════
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("12a Project Launcher")
+        self.title("Login")
         self.geometry("400x300")
         self.configure(bg="#2b2b2b")
         self.current_frame = None
@@ -62,10 +46,8 @@ class App(tk.Tk):
         self.current_frame = frame_class(self, **kwargs)
         self.current_frame.pack(fill="both", expand=True)
 
+#Login lapa
 
-# ──────────────────────────────────────────────────────────────────────────────
-# LOGIN PAGE  — Bruno's code verbatim; success goes to HubPage
-# ──────────────────────────────────────────────────────────────────────────────
 class LoginPage(tk.Frame):
     def __init__(self, master):
         super().__init__(master, bg="#2b2b2b")
@@ -75,10 +57,10 @@ class LoginPage(tk.Frame):
         self.username = tk.Entry(self, font=("Arial", 12))
         self.password = tk.Entry(self, font=("Arial", 12), show="*")
 
-        self._styled_label("Username")
+        self.styledLabel("Username")
         self.username.pack(pady=5)
 
-        self._styled_label("Password")
+        self.styledLabel("Password")
         self.password.pack(pady=5)
 
         tk.Button(self, text="Login", font=("Arial", 12), bg="#4CAF50", fg="white",
@@ -87,7 +69,7 @@ class LoginPage(tk.Frame):
         tk.Button(self, text="Register", font=("Arial", 10), bg="#2196F3", fg="white",
                   command=lambda: master.show_frame(RegisterPage)).pack()
 
-    def _styled_label(self, text):
+    def styledLabel(self, text):
         tk.Label(self, text=text, font=("Arial", 12), fg="white", bg="#2b2b2b").pack()
 
     def login(self):
@@ -99,7 +81,7 @@ class LoginPage(tk.Frame):
             for row in reader:
                 if row["username"] == username and row["password"] == password:
                     self.master.geometry("400x380")
-                    mod = _load_module("nikols_app", FILE_NIKOLS)
+                    mod = loadModule("nikols_app", FILE_NIKOLS)
                     if mod is None:
                         return
                     top = tk.Toplevel(self.master)
@@ -113,10 +95,8 @@ class LoginPage(tk.Frame):
                 
         messagebox.showerror("Error", "Invalid username or password")
 
+# Registrācijas lapa
 
-# ──────────────────────────────────────────────────────────────────────────────
-# REGISTER PAGE  — Bruno's code verbatim
-# ──────────────────────────────────────────────────────────────────────────────
 class RegisterPage(tk.Frame):
     def __init__(self, master):
         super().__init__(master, bg="#2b2b2b")
@@ -126,10 +106,10 @@ class RegisterPage(tk.Frame):
         self.username = tk.Entry(self, font=("Arial", 12))
         self.password = tk.Entry(self, font=("Arial", 12), show="*")
 
-        self._styled_label("New Username")
+        self.styledLabel("New Username")
         self.username.pack(pady=5)
 
-        self._styled_label("New Password")
+        self.styledLabel("New Password")
         self.password.pack(pady=5)
 
         tk.Button(self, text="Create Account", font=("Arial", 12), bg="#FF9800", fg="white",
@@ -138,7 +118,7 @@ class RegisterPage(tk.Frame):
         tk.Button(self, text="Back to Login", font=("Arial", 10), bg="#757575", fg="white",
                   command=lambda: master.show_frame(LoginPage)).pack()
 
-    def _styled_label(self, text):
+    def styledLabel(self, text):
         tk.Label(self, text=text, font=("Arial", 12), fg="white", bg="#2b2b2b").pack()
 
     def register(self):
@@ -162,7 +142,6 @@ class RegisterPage(tk.Frame):
         messagebox.showinfo("Success", "Account created")
         self.master.show_frame(LoginPage)
 
-# ══════════════════════════════════════════════════════════════════════════════
 if __name__ == "__main__":
     mp.freeze_support()
     init_csv()
