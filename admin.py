@@ -205,13 +205,16 @@ def get_children(node_type, node_id):
                                 f"[#{r['id']}] [{r['tips']}] {snippet}"))
 
         elif node_type == "test":
-            for r in conn.execute(
-                "SELECT id, tips, jautajums FROM test_jautajumi WHERE test_id=? ORDER BY id",
-                (node_id,)
-            ):
-                snippet = (r["jautajums"] or "").replace("\n", " ")[:50]
-                out.append(("test_jautajums", r["id"],
-                            f"[#{r['id']}] [{r['tips']}] {snippet}"))
+            # NB: test_jautajumi.test_id glabā page_id, nevis tests.id
+            row = conn.execute("SELECT page_id FROM tests WHERE id=?", (node_id,)).fetchone()
+            if row:
+                for r in conn.execute(
+                    "SELECT id, tips, jautajums FROM test_jautajumi WHERE test_id=? ORDER BY id",
+                    (row["page_id"],)
+                ):
+                    snippet = (r["jautajums"] or "").replace("\n", " ")[:50]
+                    out.append(("test_jautajums", r["id"],
+                                f"[#{r['id']}] [{r['tips']}] {snippet}"))
 
         elif node_type == "test_jautajums":
             q = conn.execute("SELECT tips FROM test_jautajumi WHERE id=?", (node_id,)).fetchone()
@@ -323,10 +326,13 @@ def insert_child(parent_type, parent_id, child_type):
                       (page_id, "text", "Jauns teksta saturs"))
 
         elif child_type == "test_jautajums":
+            # NB: test_jautajumi.test_id glabā page_id, nevis tests.id
+            page_id = c.execute("SELECT page_id FROM tests WHERE id=?",
+                                (parent_id,)).fetchone()[0]
             c.execute(
                 "INSERT INTO test_jautajumi(test_id, tips, jautajums, punkti, max_laiks) "
                 "VALUES (?, ?, ?, ?, ?)",
-                (parent_id, "multiple_choice", "Jauns jautājums", 10, 1.0)
+                (page_id, "multiple_choice", "Jauns jautājums", 10, 1.0)
             )
 
         elif child_type == "mc_opcija":
