@@ -31,6 +31,12 @@ def loadModule(name, path):
 
 #Galvenā aplikācija
 
+colDark = "#373E40"
+colDCyan = "#305252"
+colCyan = "#488286"
+colGray = "#77878B"
+colLCyan = "#B7D5D4"
+
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -50,31 +56,86 @@ class App(tk.Tk):
 
 class LoginPage(tk.Frame):
     def __init__(self, master):
-        super().__init__(master, bg="#2b2b2b")
+        super().__init__(master, bg=colDark)
 
-        tk.Label(self, text="Login", font=("Arial", 22, "bold"), fg="white", bg="#2b2b2b").pack(pady=20)
+        tk.Label(self, text="Login", font=("Arial", 22, "bold"), fg="white", bg=colDark).pack(pady=20)
 
-        self.username = tk.Entry(self, font=("Arial", 12))
-        self.password = tk.Entry(self, font=("Arial", 12), show="*")
+        self.username_canvas, self.username_entry = self._pill_entry("Username")
+        self.password_canvas, self.password_entry = self._pill_entry("Password", secret=True)
 
-        self.styledLabel("Username")
-        self.username.pack(pady=5)
+        self._pill_button("Login", self.login)
+        self._pill_button("Register", lambda: master.show_frame(RegisterPage))
 
-        self.styledLabel("Password")
-        self.password.pack(pady=5)
+    def _draw_box(self, canvas, color, x2=300, y2=40, r=12):
+        canvas.delete("box")
+        x1, y1 = 0, 4
+        canvas.create_arc(x1, y1, x1+2*r, y1+2*r, start=90, extent=90, fill=color, outline=color, tags="box")
+        canvas.create_arc(x2-2*r, y1, x2, y1+2*r, start=0, extent=90, fill=color, outline=color, tags="box")
+        canvas.create_arc(x1, y2-2*r, x1+2*r, y2, start=180, extent=90, fill=color, outline=color, tags="box")
+        canvas.create_arc(x2-2*r, y2-2*r, x2, y2, start=270, extent=90, fill=color, outline=color, tags="box")
+        canvas.create_rectangle(x1+r, y1, x2-r, y2, fill=color, outline=color, tags="box")
+        canvas.create_rectangle(x1, y1+r, x2, y2-r, fill=color, outline=color, tags="box")
 
-        tk.Button(self, text="Login", font=("Arial", 12), bg="#4CAF50", fg="white",
-                  command=self.login).pack(pady=15)
+    def _pill_entry(self, placeholder, secret=False):
+        canvas = tk.Canvas(self, width=300, height=45, bg=colDark, highlightthickness=0)
+        canvas.pack(pady=5)
 
-        tk.Button(self, text="Register", font=("Arial", 10), bg="#2196F3", fg="white",
-                  command=lambda: master.show_frame(RegisterPage)).pack()
+        self._draw_box(canvas, colGray)
 
-    def styledLabel(self, text):
-        tk.Label(self, text=text, font=("Arial", 12), fg="white", bg="#2b2b2b").pack()
+        entry = tk.Entry(canvas, font=("Arial", 13), bg=colGray, fg="white",
+                         insertbackground=colDCyan, relief="flat", width=22, bd=0,
+                         highlightthickness=0, show="")
+        canvas.create_window(150, 22, window=entry)
+
+        for widget in (canvas, entry):
+            widget.bind("<Enter>", lambda e, c=canvas, en=entry: [
+                self._draw_box(c, colLCyan, 300, 45), en.config(bg=colLCyan, fg=colDCyan)])
+            widget.bind("<Leave>", lambda e, c=canvas, en=entry: (
+                None if en == self.master.focus_get() else [
+                self._draw_box(c, colGray, 300, 45), en.config(bg=colGray, fg="white")]))
+
+        entry.insert(0, placeholder)
+
+        def on_focus_in(event, en=entry):
+            if en.get() == placeholder:
+                en.delete(0, tk.END)
+            en.config(bg=colLCyan, fg=colDCyan)
+            self._draw_box(canvas, colLCyan, 300, 45)
+            if secret:
+                en.config(show="*")
+
+        def on_focus_out(event, en=entry):
+            if en.get() == "":
+                en.config(show="")
+                en.insert(0, placeholder)
+            en.config(bg=colGray, fg="white")
+            self._draw_box(canvas, colGray, 300, 45)
+
+        entry.bind("<FocusIn>", on_focus_in)
+        entry.bind("<FocusOut>", on_focus_out)
+
+        return canvas, entry
+
+    def _pill_button(self, text, command):
+        canvas = tk.Canvas(self, width=200, height=38, bg=colDark, highlightthickness=0)
+        canvas.pack(pady=8)
+
+        self._draw_box(canvas, colCyan, 200, 38)
+
+        label = tk.Label(canvas, text=text, font=("Arial", 12, "bold"),
+                         bg=colCyan, fg="white", cursor="hand2")
+        canvas.create_window(100, 19, window=label)
+
+        for widget in (canvas, label):
+            widget.bind("<Enter>", lambda e, c=canvas, lb=label: [
+                self._draw_box(c, colLCyan, 200, 38), lb.config(bg=colLCyan, fg=colDCyan)])
+            widget.bind("<Leave>", lambda e, c=canvas, lb=label: [
+                self._draw_box(c, colCyan, 200, 38), lb.config(bg=colCyan, fg="white")])
+            widget.bind("<Button-1>", lambda e: command())
 
     def login(self):
-        username = self.username.get()
-        password = self.password.get()
+        username = self.username_entry.get()
+        password = self.password_entry.get()
 
         with open(CSV_FILE, "r") as f:
             reader = csv.DictReader(f)
@@ -99,31 +160,91 @@ class LoginPage(tk.Frame):
 
 class RegisterPage(tk.Frame):
     def __init__(self, master):
-        super().__init__(master, bg="#2b2b2b")
+        super().__init__(master, bg=colDark)
 
-        tk.Label(self, text="Register", font=("Arial", 22, "bold"), fg="white", bg="#2b2b2b").pack(pady=20)
+        tk.Label(self, text="Register", font=("Arial", 22, "bold"), fg="white", bg=colDark).pack(pady=20)
 
-        self.username = tk.Entry(self, font=("Arial", 12))
-        self.password = tk.Entry(self, font=("Arial", 12), show="*")
+        self.username_canvas, self.username_entry = self._pill_entry("New Username")
+        self.password_canvas, self.password_entry = self._pill_entry("New Password", secret=True)
 
-        self.styledLabel("New Username")
-        self.username.pack(pady=5)
+        self._pill_button("Create Account", self.register)
+        self._pill_button("Back to Login", lambda: master.show_frame(LoginPage))
 
-        self.styledLabel("New Password")
-        self.password.pack(pady=5)
+    def _draw_box(self, canvas, color, x2=300, y2=40, r=12):
+        canvas.delete("box")
+        x1, y1 = 0, 4
+        canvas.create_arc(x1, y1, x1+2*r, y1+2*r, start=90, extent=90, fill=color, outline=color, tags="box")
+        canvas.create_arc(x2-2*r, y1, x2, y1+2*r, start=0, extent=90, fill=color, outline=color, tags="box")
+        canvas.create_arc(x1, y2-2*r, x1+2*r, y2, start=180, extent=90, fill=color, outline=color, tags="box")
+        canvas.create_arc(x2-2*r, y2-2*r, x2, y2, start=270, extent=90, fill=color, outline=color, tags="box")
+        canvas.create_rectangle(x1+r, y1, x2-r, y2, fill=color, outline=color, tags="box")
+        canvas.create_rectangle(x1, y1+r, x2, y2-r, fill=color, outline=color, tags="box")
 
-        tk.Button(self, text="Create Account", font=("Arial", 12), bg="#FF9800", fg="white",
-                  command=self.register).pack(pady=15)
+    def _pill_entry(self, placeholder, secret=False):
+        canvas = tk.Canvas(self, width=300, height=45, bg=colDark, highlightthickness=0)
+        canvas.pack(pady=5)
 
-        tk.Button(self, text="Back to Login", font=("Arial", 10), bg="#757575", fg="white",
-                  command=lambda: master.show_frame(LoginPage)).pack()
+        self._draw_box(canvas, colGray)
 
-    def styledLabel(self, text):
-        tk.Label(self, text=text, font=("Arial", 12), fg="white", bg="#2b2b2b").pack()
+        entry = tk.Entry(canvas, font=("Arial", 13), bg=colGray, fg="white",
+                         insertbackground=colDCyan, relief="flat", width=22, bd=0,
+                         highlightthickness=0, show="")
+        canvas.create_window(150, 22, window=entry)
+
+        for widget in (canvas, entry):
+            widget.bind("<Enter>", lambda e, c=canvas, en=entry: [
+                self._draw_box(c, colLCyan, 300, 45), en.config(bg=colLCyan, fg=colDCyan)])
+            widget.bind("<Leave>", lambda e, c=canvas, en=entry: (
+                None if en == self.master.focus_get() else [
+                self._draw_box(c, colGray, 300, 45), en.config(bg=colGray, fg="white")]))
+
+        entry.insert(0, placeholder)
+
+        def on_focus_in(event, en=entry):
+            if en.get() == placeholder:
+                en.delete(0, tk.END)
+            en.config(bg=colLCyan, fg=colDCyan)
+            self._draw_box(canvas, colLCyan, 300, 45)
+            if secret:
+                en.config(show="*")
+
+        def on_focus_out(event, en=entry):
+            if en.get() == "":
+                en.config(show="")
+                en.insert(0, placeholder)
+            en.config(bg=colGray, fg="white")
+            self._draw_box(canvas, colGray, 300, 45)
+
+        entry.bind("<FocusIn>", on_focus_in)
+        entry.bind("<FocusOut>", on_focus_out)
+
+        return canvas, entry
+
+    def _pill_button(self, text, command):
+        canvas = tk.Canvas(self, width=200, height=38, bg=colDark, highlightthickness=0)
+        canvas.pack(pady=8)
+
+        self._draw_box(canvas, colCyan, 200, 38)
+
+        label = tk.Label(canvas, text=text, font=("Arial", 12, "bold"),
+                         bg=colCyan, fg="white", cursor="hand2")
+        canvas.create_window(100, 19, window=label)
+
+        for widget in (canvas, label):
+            widget.bind("<Enter>", lambda e, c=canvas, lb=label: [
+                self._draw_box(c, colLCyan, 200, 38), lb.config(bg=colLCyan, fg=colDCyan)])
+            widget.bind("<Leave>", lambda e, c=canvas, lb=label: [
+                self._draw_box(c, colCyan, 200, 38), lb.config(bg=colCyan, fg="white")])
+            widget.bind("<Button-1>", lambda e: command())
 
     def register(self):
-        username = self.username.get()
-        password = self.password.get()
+        username = self.username_entry.get()
+        password = self.password_entry.get()
+
+        if username == "New Username":
+            username = ""
+        if password == "New Password":
+            password = ""
 
         if username == "" or password == "":
             messagebox.showerror("Error", "All fields required")
@@ -137,7 +258,8 @@ class RegisterPage(tk.Frame):
                     return
 
         with open(CSV_FILE, "a", newline="") as f:
-            csv.writer(f).writerow([username, password])
+            writer = csv.writer(f)
+            writer.writerow([username, password])
 
         messagebox.showinfo("Success", "Account created")
         self.master.show_frame(LoginPage)
