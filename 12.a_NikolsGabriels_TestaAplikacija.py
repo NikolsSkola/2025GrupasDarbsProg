@@ -29,6 +29,83 @@ def _load_module(name, path):
     return mod
 
 
+_FRAME_SAFE_KWARGS = {
+    'bg', 'background', 'bd', 'borderwidth', 'relief', 'cursor',
+    'highlightbackground', 'highlightcolor', 'highlightthickness',
+    'padx', 'pady', 'takefocus', 'width', 'height', 'class_',
+}
+
+
+class _EmbeddedFrame(tk.Frame):
+
+    def __init__(self, master=None, **kwargs):
+        safe = {k: v for k, v in kwargs.items() if k in _FRAME_SAFE_KWARGS}
+        tk.Frame.__init__(self, master, **safe)
+        self.pack(fill='both', expand=True)
+
+    # Loga pārvaldnieka metodes kā tukši izsaukumi
+    def title(self, *a, **k):         pass
+    def geometry(self, *a, **k):      pass
+    def minsize(self, *a, **k):       pass
+    def maxsize(self, *a, **k):       pass
+    def resizable(self, *a, **k):     pass
+    def iconbitmap(self, *a, **k):    pass
+    def iconphoto(self, *a, **k):     pass
+    def wm_title(self, *a, **k):      pass
+    def wm_geometry(self, *a, **k):   pass
+    def wm_minsize(self, *a, **k):    pass
+    def wm_maxsize(self, *a, **k):    pass
+    def wm_resizable(self, *a, **k):  pass
+    def wm_iconbitmap(self, *a, **k): pass
+    def wm_attributes(self, *a, **k): pass
+    def attributes(self, *a, **k):    pass
+    def wm_protocol(self, *a, **k):   pass
+    def protocol(self, *a, **k):      pass
+    def transient(self, *a, **k):     pass
+    def grab_set(self, *a, **k):      pass
+    def grab_release(self, *a, **k):  pass
+    def withdraw(self, *a, **k):      pass
+    def deiconify(self, *a, **k):     pass
+    def overrideredirect(self, *a, **k): pass
+    def state(self, *a, **k):         return 'normal'
+
+
+def _load_module_embedded(name, path):
+    if not os.path.exists(path):
+        messagebox.showerror("Fails nav atrasts", f"Nevar atrast:\n{path}")
+        return None
+    original_toplevel = tk.Toplevel
+    tk.Toplevel = _EmbeddedFrame
+    try:
+        spec = importlib.util.spec_from_file_location(name, path)
+        mod  = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+    finally:
+        tk.Toplevel = original_toplevel
+    return mod
+
+
+def _make_window_like_frame(parent, bg='#2b2b2b'):
+    frame = tk.Frame(parent, bg=bg)
+    frame.pack(fill='both', expand=True)
+
+    def _noop(*a, **k):
+        return None
+
+    for method in (
+        'title', 'geometry', 'minsize', 'maxsize', 'resizable',
+        'iconbitmap', 'iconphoto',
+        'wm_title', 'wm_geometry', 'wm_minsize', 'wm_maxsize',
+        'wm_resizable', 'wm_iconbitmap', 'wm_attributes', 'attributes',
+        'wm_protocol', 'protocol',
+        'transient', 'grab_set', 'grab_release',
+        'withdraw', 'deiconify', 'overrideredirect',
+    ):
+        setattr(frame, method, _noop)
+
+    return frame
+
+
 def db_connect():
     #Atgriež savienojumu ar datubāzi (row_factory = sqlite3.Row)
     if not os.path.exists(DB_PATH):
@@ -226,6 +303,35 @@ def run_with_timeout(func, args=(), kwargs={}, timeout_duration=5):
     
     return result['completed']
 
+
+#Drošā input() funkcija test izpildei
+def _normalize_inputs(raw):
+
+    if raw is None:
+        return []
+    if isinstance(raw, dict):
+        return list(raw.values())
+    if isinstance(raw, list):
+        return list(raw)
+    return [raw]
+
+
+def make_safe_input(values):
+    iterator = iter(values)
+
+    def safe_input(prompt=''):
+        try:
+            value = next(iterator)
+        except StopIteration:
+            raise EOFError(
+                "Pieprasīts vairāk input() vērtību nekā tests piedāvā. "
+                "Pārbaudi, cik reizes tavs kods izsauc input()."
+            )
+        return str(value)
+
+    return safe_input
+
+
 class PageNavigator:
     def __init__(self, root):
         self.root = root
@@ -236,13 +342,14 @@ class PageNavigator:
         self.blocked_imports = {
             'os', 'sys', 'subprocess', 'shutil', 'socket', 'urllib',
             'requests', 'pickle', 'shelve', 'importlib', '__import__',
-            'eval', 'exec', 'compile', 'open', 'file', 'input',
+            'eval', 'exec', 'compile', 'open', 'file',
             'multiprocessing', 'threading', 'ctypes', 'pty', 'commands'
         }
         
+        # input() ir atļauts — to aizvieto ar drošu versiju, kas lasa no test_case.input
         self.blocked_builtins = {
             '__import__', 'eval', 'exec', 'compile', 'open', 
-            'input', 'execfile', 'reload', 'file'
+            'execfile', 'reload', 'file'
         }
         
         self.max_execution_time = 5
@@ -263,14 +370,13 @@ class PageNavigator:
             root.destroy()
             return
 
-        # Challenges, theory_pages un theory_tests tiek ielādēti dinamiski
-        # katru reizi, kad tiek atvērta konkrēta lapa (sk. show_page metodi).
-        # Tas nozīmē, ka izmaiņas DB Browser tiek redzamas pēc lapas pārlādēšanas.
-        
-        # Izsekot testu mēģinājumiem
         self.current_test_answers = {}
         self.test_submitted = False
         
+
+        self._mod_dastins = None
+        self._mod_bruno   = None
+
         self.current_page = None
         self.setup_sidebar()
         self.show_welcome_page()
@@ -323,7 +429,7 @@ class PageNavigator:
                                      text=f"    Lapa {page}",
                                      values=[f"{section}|{chapter}|{page}"])
 
-        # ── Hardkodēta sadaļa: Datu analīze dzīvē ──────────────────────────
+        #Hardkodēta sadaļa: Datu analīze dzīvē
         DATU_SECTION = "Noderīgi rīki"
         datu_id = self.tree.insert("", "end", text=f" {DATU_SECTION}",
                                    values=[DATU_SECTION], tags=('section',))
@@ -331,11 +437,14 @@ class PageNavigator:
             self.tree.item(datu_id, open=True)
 
         self.tree.insert(datu_id, "end",
-                         text="  CardLab - Spēle datu vākšanai",
+                         text="  CardLab — Blackjack simulators",
                          values=["DATU_ANĀLĪZE|cardlab"])
         self.tree.insert(datu_id, "end",
-                         text=" Datu Kalkulatori",
-                         values=["DATU_ANĀLĪZE|kalkulatori"])
+                         text="  Korelācijas kalkulators",
+                         values=["DATU_ANĀLĪZE|correlation"])
+        self.tree.insert(datu_id, "end",
+                         text="  Normālsadalījuma kalkulators",
+                         values=["DATU_ANĀLĪZE|normdist"])
 
     def refresh_sidebar(self):
         #Atsvaidzina navigācijas koku no datubāzes.
@@ -385,86 +494,63 @@ class PageNavigator:
         elif section == "Pārbaudes Darbi":
             self.show_theory_test(section, chapter, page)
 
-    # ── Datu analīze dzīvē ──────────────────────────────────────────────────
-    # Datu analize dzive
+
     def show_datu_analize_page(self, app_key):
         self.clear_content()
-
-        tk.Label(self.content_frame,
-                 text='Datu analize dzive',
-                 font=('Arial', 20, 'bold'), bg='white').pack(pady=(30, 5))
+        self.current_page = None
 
         if app_key == 'cardlab':
-            tk.Label(self.content_frame,
-                     text='CardLab - Blackjack Simulators',
-                     font=('Arial', 14, 'bold'), bg='white', fg='#4f8ef7').pack(pady=(0, 5))
-            tk.Label(self.content_frame,
-                     text='Spelej Blackjack, konfigure botu strategijas un palaid auto-replay, '
-                          'lai iegUtu realas spelu statistikas datus analizei.',
-                     font=('Arial', 11), bg='white', fg='gray', justify=tk.CENTER).pack(pady=(0, 20))
-            tk.Button(self.content_frame,
-                      text='Atvērt CardLab - Blackjack Simulators',
-                      font=('Arial', 12, 'bold'), bg='#4f8ef7', fg='white',
-                      relief=tk.FLAT, padx=20, pady=10,
-                      command=self._launch_cardlab).pack(pady=10)
+            self._embed_cardlab()
+        elif app_key == 'correlation':
+            self._embed_correlation()
+        elif app_key == 'normdist':
+            self._embed_normdist()
 
-        elif app_key == 'kalkulatori':
-            tk.Label(self.content_frame,
-                     text='Datu Kalkulatori',
-                     font=('Arial', 14, 'bold'), bg='white', fg='#2196F3').pack(pady=(0, 5))
-            tk.Label(self.content_frame,
-                     text='Izmanto Bruno korelacijas kalkulatoru, lai analizetu '
-                          'Dastina Blackjack spelu datus un atrastu korelacijas, '
-                          'piemeram starp uzvaras biežumu un izmantoto strategiju.',
-                     font=('Arial', 11), bg='white', fg='gray', justify=tk.CENTER).pack(pady=(0, 20))
-            tk.Button(self.content_frame,
-                      text='Atvērt Korelacijas Kalkulatoru',
-                      font=('Arial', 12, 'bold'), bg='#2196F3', fg='white',
-                      relief=tk.FLAT, padx=20, pady=10,
-                      command=self._launch_correlation).pack(pady=8)
-            tk.Button(self.content_frame,
-                      text='Atvērt Normalsadalijuma Kalkulatoru',
-                      font=('Arial', 12, 'bold'), bg='#2196F3', fg='white',
-                      relief=tk.FLAT, padx=20, pady=10,
-                      command=self._launch_normdist).pack(pady=8)
-
-    def _launch_cardlab(self):
+    def _embed_cardlab(self):
         import multiprocessing as mp
         mp.freeze_support()
-        mod = _load_module('dastins_app', FILE_DASTINS)
-        if mod is None:
-            return
-        top = tk.Toplevel(self.root)
-        top.title('CardLab - Blackjack Simulators')
-        try:
-            mod.BlackjackGUI(top)
-        except Exception as e:
-            messagebox.showerror('Klaida', str(e), parent=self.root)
-            top.destroy()
 
-    def _launch_correlation(self):
-        mod = _load_module('bruno_app', FILE_BRUNO)
+        if self._mod_dastins is None:
+            self._mod_dastins = _load_module('dastins_app', FILE_DASTINS)
+        mod = self._mod_dastins
         if mod is None:
             return
-        top = tk.Toplevel(self.root)
-        top.title('Korelacijas Kalkulators')
-        try:
-            mod.CCalcWindow(top)
-        except Exception as e:
-            messagebox.showerror('Klaida', str(e), parent=self.root)
-            top.destroy()
 
-    def _launch_normdist(self):
-        mod = _load_module('bruno_app', FILE_BRUNO)
+        container = _make_window_like_frame(self.content_frame, bg='#1a2332')
+        try:
+            mod.BlackjackGUI(container)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            messagebox.showerror('Kļūda', str(e))
+
+    def _embed_correlation(self):
+        if self._mod_bruno is None:
+            self._mod_bruno = _load_module_embedded('bruno_app', FILE_BRUNO)
+        mod = self._mod_bruno
         if mod is None:
             return
-        top = tk.Toplevel(self.root)
-        top.title('Normalsadalijuma Kalkulators')
+
         try:
-            mod.NormDist(top)
+            mod.CCalcWindow(self.content_frame)
         except Exception as e:
-            messagebox.showerror('Klaida', str(e), parent=self.root)
-            top.destroy()
+            import traceback
+            traceback.print_exc()
+            messagebox.showerror('Kļūda', str(e))
+
+    def _embed_normdist(self):
+        if self._mod_bruno is None:
+            self._mod_bruno = _load_module_embedded('bruno_app', FILE_BRUNO)
+        mod = self._mod_bruno
+        if mod is None:
+            return
+
+        try:
+            mod.NormDist(self.content_frame)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            messagebox.showerror('Kļūda', str(e))
 
     def show_theory_page(self, section, chapter, page):
         self.clear_content()
@@ -577,8 +663,13 @@ class PageNavigator:
             expected_label.pack(anchor='w', pady=(0, 5))
             
             if first_test['input']:
-                input_str = ", ".join([f"{k}={v}" for k, v in first_test['input'].items()])
-                input_label = tk.Label(left_frame, text=f"Ievaddati: {input_str}", 
+                _vals = _normalize_inputs(first_test['input'])
+                if isinstance(first_test['input'], dict):
+                    hint = ", ".join([f"{k}={v}" for k, v in first_test['input'].items()])
+                    label_text = f"Ievade (caur input()): {hint}"
+                else:
+                    label_text = f"Ievade (caur input()): {', '.join(str(v) for v in _vals)}"
+                input_label = tk.Label(left_frame, text=label_text, 
                                       font=('Arial', 10), bg='white', fg='gray')
                 input_label.pack(anchor='w', padx=10)
             
@@ -953,14 +1044,13 @@ class PageNavigator:
                     'enumerate': enumerate, 'zip': zip
                 }
                 
+                # Aizvieto input() ar drošu versiju, kas izsniedz testa vērtības
+                safe_builtins['input'] = make_safe_input(_normalize_inputs(test_case['input']))
+                
                 restricted_globals = {
                     '__builtins__': safe_builtins,
                     '__name__': '__main__',
                 }
-                
-                # Pievienot ievaddatus kā mainīgos
-                if test_case['input']:
-                    restricted_globals.update(test_case['input'])
                 
                 start_time = time.time()
                 
@@ -1151,14 +1241,13 @@ class PageNavigator:
                     'reversed': reversed
                 }
                 
+                # Aizvieto input() ar drošu versiju, kas izsniedz testa vērtības
+                safe_builtins['input'] = make_safe_input(_normalize_inputs(test_case['input']))
+                
                 restricted_globals = {
                     '__builtins__': safe_builtins,
                     '__name__': '__main__',
                 }
-                
-                # Pievienot ievaddatus
-                if test_case['input']:
-                    restricted_globals.update(test_case['input'])
                 
                 start_time = time.time()
                 
@@ -1184,8 +1273,11 @@ class PageNavigator:
                 self.output_text.insert(tk.END, f"─── {test_header} ───\n")
                 
                 if test_case['input']:
-                    input_str = ", ".join([f"{k}={v}" for k, v in test_case['input'].items()])
-                    self.output_text.insert(tk.END, f"Ievaddati: {input_str}\n")
+                    if isinstance(test_case['input'], dict):
+                        input_str = ", ".join([f"{k}={v}" for k, v in test_case['input'].items()])
+                    else:
+                        input_str = ", ".join(str(v) for v in _normalize_inputs(test_case['input']))
+                    self.output_text.insert(tk.END, f"Ievade (caur input()): {input_str}\n")
                 
                 self.output_text.insert(tk.END, f"Izvade: {user_output}")
                 
