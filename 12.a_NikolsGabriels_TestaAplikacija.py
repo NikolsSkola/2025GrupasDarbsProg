@@ -8,9 +8,25 @@ import threading
 import sqlite3
 import json
 import os
+import importlib.util
 
 #Datubāzes ceļš
-DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "TestDB.db")
+THIS_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH  = os.path.join(THIS_DIR, "TestDB.db")
+
+# Failu ceļi uz pārējām aplikācijām
+FILE_DASTINS = os.path.join(THIS_DIR, "Dastins_Jevdokimovs_12a_blackjack_cardlab_v22.py")
+FILE_BRUNO   = os.path.join(THIS_DIR, "12a_bruno_kumpins_datu_izstrade.py")
+
+def _load_module(name, path):
+    if not os.path.exists(path):
+        messagebox.showerror("Fails nav atrasts",
+                             f"Nevar atrast:\n{path}")
+        return None
+    spec = importlib.util.spec_from_file_location(name, path)
+    mod  = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
 def db_connect():
@@ -307,6 +323,20 @@ class PageNavigator:
                                      text=f"    Lapa {page}",
                                      values=[f"{section}|{chapter}|{page}"])
 
+        # ── Hardkodēta sadaļa: Datu analīze dzīvē ──────────────────────────
+        DATU_SECTION = "Noderīgi rīki"
+        datu_id = self.tree.insert("", "end", text=f" {DATU_SECTION}",
+                                   values=[DATU_SECTION], tags=('section',))
+        if DATU_SECTION in expanded:
+            self.tree.item(datu_id, open=True)
+
+        self.tree.insert(datu_id, "end",
+                         text="  CardLab - Spēle datu vākšanai",
+                         values=["DATU_ANĀLĪZE|cardlab"])
+        self.tree.insert(datu_id, "end",
+                         text=" Datu Kalkulatori",
+                         values=["DATU_ANĀLĪZE|kalkulatori"])
+
     def refresh_sidebar(self):
         #Atsvaidzina navigācijas koku no datubāzes.
         self._fill_sidebar_tree()
@@ -318,7 +348,9 @@ class PageNavigator:
             values = item['values']
             if values and '|' in str(values[0]):
                 parts = str(values[0]).split('|')
-                if len(parts) == 3:
+                if len(parts) == 2 and parts[0] == "DATU_ANĀLĪZE":
+                    self.show_datu_analize_page(parts[1])
+                elif len(parts) == 3:
                     section, chapter, page = parts
                     self.show_page(section, chapter, page)
     
@@ -352,8 +384,88 @@ class PageNavigator:
             self.show_theory_page(section, chapter, page)
         elif section == "Pārbaudes Darbi":
             self.show_theory_test(section, chapter, page)
-    
-    # Teorijas lapas
+
+    # ── Datu analīze dzīvē ──────────────────────────────────────────────────
+    # Datu analize dzive
+    def show_datu_analize_page(self, app_key):
+        self.clear_content()
+
+        tk.Label(self.content_frame,
+                 text='Datu analize dzive',
+                 font=('Arial', 20, 'bold'), bg='white').pack(pady=(30, 5))
+
+        if app_key == 'cardlab':
+            tk.Label(self.content_frame,
+                     text='CardLab - Blackjack Simulators',
+                     font=('Arial', 14, 'bold'), bg='white', fg='#4f8ef7').pack(pady=(0, 5))
+            tk.Label(self.content_frame,
+                     text='Spelej Blackjack, konfigure botu strategijas un palaid auto-replay, '
+                          'lai iegUtu realas spelu statistikas datus analizei.',
+                     font=('Arial', 11), bg='white', fg='gray', justify=tk.CENTER).pack(pady=(0, 20))
+            tk.Button(self.content_frame,
+                      text='Atvērt CardLab - Blackjack Simulators',
+                      font=('Arial', 12, 'bold'), bg='#4f8ef7', fg='white',
+                      relief=tk.FLAT, padx=20, pady=10,
+                      command=self._launch_cardlab).pack(pady=10)
+
+        elif app_key == 'kalkulatori':
+            tk.Label(self.content_frame,
+                     text='Datu Kalkulatori',
+                     font=('Arial', 14, 'bold'), bg='white', fg='#2196F3').pack(pady=(0, 5))
+            tk.Label(self.content_frame,
+                     text='Izmanto Bruno korelacijas kalkulatoru, lai analizetu '
+                          'Dastina Blackjack spelu datus un atrastu korelacijas, '
+                          'piemeram starp uzvaras biežumu un izmantoto strategiju.',
+                     font=('Arial', 11), bg='white', fg='gray', justify=tk.CENTER).pack(pady=(0, 20))
+            tk.Button(self.content_frame,
+                      text='Atvērt Korelacijas Kalkulatoru',
+                      font=('Arial', 12, 'bold'), bg='#2196F3', fg='white',
+                      relief=tk.FLAT, padx=20, pady=10,
+                      command=self._launch_correlation).pack(pady=8)
+            tk.Button(self.content_frame,
+                      text='Atvērt Normalsadalijuma Kalkulatoru',
+                      font=('Arial', 12, 'bold'), bg='#2196F3', fg='white',
+                      relief=tk.FLAT, padx=20, pady=10,
+                      command=self._launch_normdist).pack(pady=8)
+
+    def _launch_cardlab(self):
+        import multiprocessing as mp
+        mp.freeze_support()
+        mod = _load_module('dastins_app', FILE_DASTINS)
+        if mod is None:
+            return
+        top = tk.Toplevel(self.root)
+        top.title('CardLab - Blackjack Simulators')
+        try:
+            mod.BlackjackGUI(top)
+        except Exception as e:
+            messagebox.showerror('Klaida', str(e), parent=self.root)
+            top.destroy()
+
+    def _launch_correlation(self):
+        mod = _load_module('bruno_app', FILE_BRUNO)
+        if mod is None:
+            return
+        top = tk.Toplevel(self.root)
+        top.title('Korelacijas Kalkulators')
+        try:
+            mod.CCalcWindow(top)
+        except Exception as e:
+            messagebox.showerror('Klaida', str(e), parent=self.root)
+            top.destroy()
+
+    def _launch_normdist(self):
+        mod = _load_module('bruno_app', FILE_BRUNO)
+        if mod is None:
+            return
+        top = tk.Toplevel(self.root)
+        top.title('Normalsadalijuma Kalkulators')
+        try:
+            mod.NormDist(top)
+        except Exception as e:
+            messagebox.showerror('Klaida', str(e), parent=self.root)
+            top.destroy()
+
     def show_theory_page(self, section, chapter, page):
         self.clear_content()
         
