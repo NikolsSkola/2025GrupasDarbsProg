@@ -18,6 +18,13 @@ DB_PATH  = os.path.join(THIS_DIR, "TestDB.db")
 FILE_DASTINS = os.path.join(THIS_DIR, "Dastins_Jevdokimovs_12a_blackjack_cardlab_v22.py")
 FILE_BRUNO   = os.path.join(THIS_DIR, "12a_bruno_kumpins_datu_izstrade.py")
 
+colDark = "#373E40"
+colDCyan = "#305252"
+colCyan = "#488286"
+colGray = "#77878B"
+colLCyan = "#B7D5D4"
+colWhite = "#FFFFFF"
+
 def _load_module(name, path):
     if not os.path.exists(path):
         messagebox.showerror("Fails nav atrasts",
@@ -97,7 +104,7 @@ def _load_module_embedded(name, path):
     return mod
 
 
-def _make_window_like_frame(parent, bg='#2b2b2b'):
+def _make_window_like_frame(parent, bg=colDark):
     """Izveido kadru content_frame iekšā un piešķir tam loga pārvaldnieka
     metodes (title, geometry, minsize utt.) kā tukšus izsaukumus. Izmanto
     aplikācijām, kuru klase nav tk.Toplevel apakšklase, bet gaida "root"
@@ -364,6 +371,7 @@ class PageNavigator:
         self.root = root
         self.root.title("Programmēšanas Mācību Platforma")
         self.root.geometry("1200x700")
+        self.root.configure(bg=colDark)
         
         # Drošības iestatījumi
         self.blocked_imports = {
@@ -382,11 +390,15 @@ class PageNavigator:
         self.max_execution_time = 5
         
         # Izveidot galvenos rāmjus
-        self.sidebar_frame = tk.Frame(root, width=220, bg='lightgray')
+        self.sidebar_frame = tk.Frame(root, width=220, bg=colDark)
         self.sidebar_frame.pack(side=tk.LEFT, fill=tk.Y, padx=5, pady=5)
         self.sidebar_frame.pack_propagate(False)
         
-        self.content_frame = tk.Frame(root, bg='white')
+        # Add visual separator between sidebar and content
+        separator = tk.Frame(root, bg=colCyan, width=3)
+        separator.pack(side=tk.LEFT, fill=tk.Y)
+        
+        self.content_frame = tk.Frame(root, bg=colDark)
         self.content_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=5, pady=5)
         
         #Ielādē navigācijas struktūru no datubāzes
@@ -415,17 +427,40 @@ class PageNavigator:
     
     def setup_sidebar(self):
         title_label = tk.Label(self.sidebar_frame, text="Navigācija",
-                              bg='lightgray', font=('Arial', 14, 'bold'))
+                              bg=colDark, fg=colWhite, font=('Arial', 14, 'bold'))
         title_label.pack(pady=(10, 2))
 
         refresh_btn = tk.Button(self.sidebar_frame, text="Atsvaidzināt",
-                                bg='#5c85d6', fg='white', font=('Arial', 9),
+                                bg=colCyan, fg=colWhite, font=('Arial', 9),
                                 relief=tk.FLAT, padx=6, pady=2,
+                                activebackground=colLCyan, activeforeground=colDCyan,
                                 command=self.refresh_sidebar)
         refresh_btn.pack(pady=(0, 6))
 
+        # Style the Treeview for dark theme
+        style = ttk.Style()
+        style.theme_use('default')  # Use default theme for better control
+        style.configure("Treeview", 
+                       background=colDark, 
+                       foreground=colWhite, 
+                       fieldbackground=colDark,
+                       borderwidth=0,
+                       lightcolor=colDark,
+                       darkcolor=colDark,
+                       bordercolor=colDark)
+        style.configure("Treeview.Heading", 
+                       background=colDark, 
+                       foreground=colWhite)
+        style.map('Treeview', 
+                 background=[('selected', colCyan)],
+                 foreground=[('selected', colWhite)],
+                 fieldbackground=[('selected', colDark)])
+
         self.tree = ttk.Treeview(self.sidebar_frame, show='tree')
-        self.tree.pack(fill=tk.BOTH, expand=True, padx=5)
+        self.tree.pack(fill=tk.BOTH, expand=True)
+        
+        # Additional configuration
+        self.tree.configure(style="Treeview")
 
         self.tree.tag_configure('section', font=('Arial', 10, 'bold'))
         self.tree.bind('<<TreeviewSelect>>', self.on_item_selected)
@@ -505,7 +540,7 @@ class PageNavigator:
         
         welcome_label = tk.Label(self.content_frame, 
                                 text="Laipni Lūdzam Programmēšanas Mācību Platformā!", 
-                                font=('Arial', 18, 'bold'), bg='white')
+                                font=('Arial', 18, 'bold'), bg=colDark, fg=colWhite)
         welcome_label.pack(pady=50)
         
         desc_label = tk.Label(self.content_frame, 
@@ -513,7 +548,7 @@ class PageNavigator:
                                   "Kodēšanas Uzdevumi - Praktizē savas programmēšanas prasmes\n"
                                   "Teorija - Apgūsti programmēšanas konceptus\n"
                                   "Pārbaudes Darbi - Pārbaudi savas zināšanas",
-                             font=('Arial', 12), bg='white', justify=tk.LEFT)
+                             font=('Arial', 12), bg=colDark, fg=colWhite, justify=tk.LEFT)
         desc_label.pack(pady=20)
     
     def show_page(self, section, chapter, page):
@@ -557,7 +592,7 @@ class PageNavigator:
         if mod is None:
             return
 
-        container = _make_window_like_frame(self.content_frame, bg='#1a2332')
+        container = _make_window_like_frame(self.content_frame, bg=colDark)
         try:
             mod.BlackjackGUI(container)
         except Exception as e:
@@ -605,10 +640,13 @@ class PageNavigator:
             self.show_placeholder_page(section, chapter, page, "Teorija")
             return
         
-        # Izveidot ritināmu audeklu
-        canvas = tk.Canvas(self.content_frame, bg='white')
-        scrollbar = ttk.Scrollbar(self.content_frame, orient="vertical", command=canvas.yview)
-        scrollable_frame = tk.Frame(canvas, bg='white')
+        # Izveidot ritināmu audeklu ar ciano rāmi
+        content_border = tk.Frame(self.content_frame, bg=colCyan, bd=0)
+        content_border.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
+
+        canvas = tk.Canvas(content_border, bg=colDark, bd=0, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(content_border, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas, bg=colDark)
         
         scrollable_frame.bind(
             "<Configure>",
@@ -620,37 +658,38 @@ class PageNavigator:
         
         # Virsraksts
         title_label = tk.Label(scrollable_frame, text=theory['title'], 
-                              font=('Arial', 20, 'bold'), bg='white')
+                              font=('Arial', 20, 'bold'), bg=colDark, fg=colWhite)
         title_label.pack(pady=(20, 10), padx=30, anchor='w')
         
         # Nodaļas info
         info_label = tk.Label(scrollable_frame, text=f"{chapter} - Lapa {page}", 
-                             font=('Arial', 10), bg='white', fg='gray')
+                             font=('Arial', 10), bg=colDark, fg=colWhite)
         info_label.pack(padx=30, anchor='w', pady=(0, 20))
         
         # Renderēt sekcijas
         for section_data in theory['sections']:
             if section_data['type'] == 'heading':
                 heading = tk.Label(scrollable_frame, text=section_data['content'],
-                                  font=('Arial', 14, 'bold'), bg='white')
+                                  font=('Arial', 14, 'bold'), bg=colDark, fg=colWhite)
                 heading.pack(pady=(15, 5), padx=30, anchor='w')
             
             elif section_data['type'] == 'text':
                 text = tk.Label(scrollable_frame, text=section_data['content'],
-                               font=('Arial', 11), bg='white', justify=tk.LEFT,
+                               font=('Arial', 11), bg=colDark, fg=colWhite, justify=tk.LEFT,
                                wraplength=900, anchor='w')
                 text.pack(pady=5, padx=30, anchor='w')
             
             elif section_data['type'] == 'code':
-                code_frame = tk.Frame(scrollable_frame, bg='#2d2d2d', relief=tk.RAISED, bd=2)
+                code_frame = tk.Frame(scrollable_frame, bg=colCyan, relief=tk.FLAT, bd=0)
                 code_frame.pack(pady=10, padx=30, fill=tk.X)
                 
                 code_text = tk.Text(code_frame, font=('Courier', 11), bg='#2d2d2d',
                                    fg='#f8f8f2', wrap=tk.NONE, height=section_data['content'].count('\n') + 2,
-                                   relief=tk.FLAT, padx=15, pady=10)
+                                   relief=tk.FLAT, bd=0, padx=15, pady=10,
+                                   highlightbackground=colCyan, highlightcolor=colCyan, highlightthickness=1)
                 code_text.insert('1.0', section_data['content'])
                 code_text.config(state='disabled')
-                code_text.pack(fill=tk.X)
+                code_text.pack(fill=tk.X, padx=2, pady=2)
         
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
@@ -666,45 +705,48 @@ class PageNavigator:
             self.show_placeholder_page(section, chapter, page, "Kodēšanas Uzdevums")
             return
         
-        main_container = tk.Frame(self.content_frame, bg='white')
+        main_container = tk.Frame(self.content_frame, bg=colDark)
         main_container.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
-        left_frame = tk.Frame(main_container, bg='white', width=400)
+        left_frame = tk.Frame(main_container, bg=colDark, width=400)
         left_frame.pack(side=tk.LEFT, fill=tk.BOTH, padx=(0, 10))
         left_frame.pack_propagate(False)
         
-        right_frame = tk.Frame(main_container, bg='white')
-        right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        right_border = tk.Frame(main_container, bg=colCyan, bd=0)
+        right_border.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        
+        right_frame = tk.Frame(right_border, bg=colDark, bd=0)
+        right_frame.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
         
         # Uzdevuma apraksts
         title_label = tk.Label(left_frame, text=challenge['title'], 
-                              font=('Arial', 16, 'bold'), bg='white')
+                              font=('Arial', 16, 'bold'), bg=colDark, fg=colWhite)
         title_label.pack(pady=(10, 5), anchor='w')
         
         info_label = tk.Label(left_frame, text=f"{chapter} - Lapa {page}", 
-                             font=('Arial', 10), bg='white', fg='gray')
+                             font=('Arial', 10), bg=colDark, fg=colWhite)
         info_label.pack(anchor='w', pady=(0, 15))
         
         desc_label = tk.Label(left_frame, text="Uzdevums:", 
-                             font=('Arial', 12, 'bold'), bg='white')
+                             font=('Arial', 12, 'bold'), bg=colDark, fg=colWhite)
         desc_label.pack(anchor='w', pady=(0, 5))
         
         desc_text = tk.Label(left_frame, text=challenge['description'], 
-                            font=('Arial', 11), bg='white', justify=tk.LEFT,
+                            font=('Arial', 11), bg=colDark, fg=colWhite, justify=tk.LEFT,
                             wraplength=380)
         desc_text.pack(anchor='w', pady=(0, 15))
         
         # Parādīt testu gadījumu skaitu
         test_count_label = tk.Label(left_frame, 
                                    text=f"Testu gadījumi: {len(challenge['test_cases'])}", 
-                                   font=('Arial', 11, 'bold'), bg='white', fg='blue')
+                                   font=('Arial', 11, 'bold'), bg=colDark, fg=colWhite)
         test_count_label.pack(anchor='w', pady=(0, 10))
         
         # Piemēra izvade (parāda tikai pirmo testu)
         if challenge['test_cases']:
             first_test = challenge['test_cases'][0]
             expected_label = tk.Label(left_frame, text="Piemēra Izvade:", 
-                                     font=('Arial', 12, 'bold'), bg='white')
+                                     font=('Arial', 12, 'bold'), bg=colDark, fg=colWhite)
             expected_label.pack(anchor='w', pady=(0, 5))
             
             if first_test['input']:
@@ -715,20 +757,20 @@ class PageNavigator:
                 else:
                     label_text = f"Ievade (caur input()): {', '.join(str(v) for v in _vals)}"
                 input_label = tk.Label(left_frame, text=label_text, 
-                                      font=('Arial', 10), bg='white', fg='gray')
+                                      font=('Arial', 10), bg=colDark, fg=colWhite)
                 input_label.pack(anchor='w', padx=10)
             
-            expected_frame = tk.Frame(left_frame, bg='#f0f0f0', relief=tk.SUNKEN, bd=1)
+            expected_frame = tk.Frame(left_frame, bg=colDark, relief=tk.SUNKEN, bd=1)
             expected_frame.pack(fill=tk.X, pady=(5, 15))
             
             expected_text = tk.Label(expected_frame, text=first_test['expected_output'], 
-                                    font=('Courier', 10), bg='#f0f0f0', justify=tk.LEFT,
+                                    font=('Courier', 10), bg=colDark, fg=colWhite, justify=tk.LEFT,
                                     anchor='w')
             expected_text.pack(padx=10, pady=10, anchor='w')
         
         # Koda redaktors
         editor_label = tk.Label(right_frame, text="Tavs Kods:", 
-                               font=('Arial', 12, 'bold'), bg='white')
+                               font=('Arial', 12, 'bold'), bg=colDark, fg=colWhite)
         editor_label.pack(anchor='w', pady=(0, 5))
         
         self.code_editor = scrolledtext.ScrolledText(right_frame, 
@@ -737,18 +779,23 @@ class PageNavigator:
                                                      height=15,
                                                      bg='#1e1e1e',
                                                      fg='#d4d4d4',
-                                                     insertbackground='white')
-        self.code_editor.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+                                                     insertbackground='white',
+                                                     highlightbackground=colCyan,
+                                                     highlightcolor=colCyan,
+                                                     highlightthickness=1,
+                                                     bd=0)
+        self.code_editor.pack(fill=tk.BOTH, expand=True, pady=(0, 10), padx=2)
         self.code_editor.insert('1.0', challenge['starter_code'])
         
         # Pogas
-        control_frame = tk.Frame(right_frame, bg='white')
+        control_frame = tk.Frame(right_frame, bg=colDark)
         control_frame.pack(fill=tk.X, pady=(0, 10))
         
         run_btn = tk.Button(control_frame, text="Palaist Kodu", 
                            command=lambda: self.run_code(challenge),
-                           bg='#4CAF50', fg='white', font=('Arial', 11, 'bold'),
-                           padx=20, pady=8)
+                           bg=colCyan, fg=colWhite, font=('Arial', 11, 'bold'),
+                           padx=20, pady=8,
+                           activebackground=colLCyan, activeforeground=colDCyan)
         run_btn.pack(side=tk.LEFT, padx=(0, 10))
         
         clear_btn = tk.Button(control_frame, text="Notīrīt Izvadi", 
@@ -765,16 +812,21 @@ class PageNavigator:
         
         # Izvade
         output_label = tk.Label(right_frame, text="Izvade:", 
-                               font=('Arial', 12, 'bold'), bg='white')
+                               font=('Arial', 12, 'bold'), bg=colDark, fg=colWhite)
         output_label.pack(anchor='w', pady=(0, 5))
         
         self.output_text = scrolledtext.ScrolledText(right_frame, 
                                                      font=('Courier', 10),
                                                      wrap=tk.WORD,
                                                      height=8,
-                                                     bg='#f5f5f5',
-                                                     state='disabled')
-        self.output_text.pack(fill=tk.BOTH, expand=True)
+                                                     bg='#1e1e1e',
+                                                     fg='#d4d4d4',
+                                                     state='disabled',
+                                                     highlightbackground=colCyan,
+                                                     highlightcolor=colCyan,
+                                                     highlightthickness=1,
+                                                     bd=0)
+        self.output_text.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
         
         self.add_navigation_buttons()
     
@@ -793,10 +845,13 @@ class PageNavigator:
             self.current_test_answers[test_key] = {}
             self.test_submitted = False
         
-        # Izveidot ritināmu audeklu
-        canvas = tk.Canvas(self.content_frame, bg='white')
-        scrollbar = ttk.Scrollbar(self.content_frame, orient="vertical", command=canvas.yview)
-        scrollable_frame = tk.Frame(canvas, bg='white')
+        # Izveidot ritināmu audeklu ar ciano rāmi
+        content_border = tk.Frame(self.content_frame, bg=colCyan, bd=0)
+        content_border.pack(fill=tk.BOTH, expand=True, padx=2, pady=2)
+
+        canvas = tk.Canvas(content_border, bg=colDark, bd=0, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(content_border, orient="vertical", command=canvas.yview)
+        scrollable_frame = tk.Frame(canvas, bg=colDark)
         
         scrollable_frame.bind(
             "<Configure>",
@@ -808,17 +863,17 @@ class PageNavigator:
         
         # Testa galvene
         title_label = tk.Label(scrollable_frame, text=test['title'], 
-                              font=('Arial', 18, 'bold'), bg='white')
+                              font=('Arial', 18, 'bold'), bg=colDark, fg=colWhite)
         title_label.pack(pady=(20, 5), padx=30, anchor='w')
         
         desc_label = tk.Label(scrollable_frame, text=test['description'], 
-                             font=('Arial', 11), bg='white', fg='gray')
+                             font=('Arial', 11), bg=colDark, fg=colWhite)
         desc_label.pack(padx=30, anchor='w', pady=(0, 5))
         
         total_points = sum(q['points'] for q in test['questions'])
         points_label = tk.Label(scrollable_frame, 
                                text=f"Kopējie Punkti: {total_points} | Nokārtošanas Slieksnis: {test['passing_score']}%", 
-                               font=('Arial', 10, 'bold'), bg='white', fg='blue')
+                               font=('Arial', 10, 'bold'), bg=colDark, fg=colWhite)
         points_label.pack(padx=30, anchor='w', pady=(0, 20))
         
         # Renderēt jautājumus
@@ -826,19 +881,19 @@ class PageNavigator:
             q_num = i + 1
             
             # Jautājuma konteiners
-            q_frame = tk.Frame(scrollable_frame, bg='#f9f9f9', relief=tk.RAISED, bd=2)
+            q_frame = tk.Frame(scrollable_frame, bg=colDark, relief=tk.RAISED, bd=2)
             q_frame.pack(fill=tk.X, padx=30, pady=10)
             
             # Jautājuma galvene
             q_header = tk.Label(q_frame, 
                                text=f"Jautājums {q_num} ({question['points']} punkti)", 
-                               font=('Arial', 12, 'bold'), bg='#f9f9f9')
+                               font=('Arial', 12, 'bold'), bg=colDark, fg=colWhite)
             q_header.pack(anchor='w', padx=15, pady=(10, 5))
             
             if question['type'] == 'multiple_choice':
                 # Jautājuma teksts
                 q_text = tk.Label(q_frame, text=question['question'],
-                                 font=('Arial', 11), bg='#f9f9f9', justify=tk.LEFT,
+                                 font=('Arial', 11), bg=colDark, fg=colWhite, justify=tk.LEFT,
                                  wraplength=900)
                 q_text.pack(anchor='w', padx=15, pady=5)
                 
@@ -849,7 +904,10 @@ class PageNavigator:
                 
                 for j, option in enumerate(question['options']):
                     rb = tk.Radiobutton(q_frame, text=option, variable=var, value=j,
-                                       font=('Arial', 10), bg='#f9f9f9',
+                                       font=('Arial', 10), bg=colDark, fg=colWhite,
+                                       selectcolor=colDCyan,
+                                       activebackground=colDark,
+                                       activeforeground=colWhite,
                                        command=lambda v=var, n=q_num, k=test_key: self.save_mc_answer(k, n, v.get()))
                     rb.pack(anchor='w', padx=30, pady=2)
                 
@@ -861,18 +919,18 @@ class PageNavigator:
                     if user_answer == correct:
                         result_label = tk.Label(q_frame, text="Pareizi!", 
                                                font=('Arial', 10, 'bold'), 
-                                               bg='#f9f9f9', fg='green')
+                                               bg=colDark, fg=colWhite)
                     else:
                         result_label = tk.Label(q_frame, 
                                                text=f"Nepareizi! Pareizā atbilde: {question['options'][correct]}", 
                                                font=('Arial', 10, 'bold'), 
-                                               bg='#f9f9f9', fg='red')
+                                               bg=colDark, fg=colWhite)
                     result_label.pack(anchor='w', padx=15, pady=(5, 10))
             
             elif question['type'] == 'coding':
                 # Jautājuma teksts
                 q_text = tk.Label(q_frame, text=question['question'],
-                                 font=('Arial', 11), bg='#f9f9f9', justify=tk.LEFT,
+                                 font=('Arial', 11), bg=colDark, fg=colWhite, justify=tk.LEFT,
                                  wraplength=900)
                 q_text.pack(anchor='w', padx=15, pady=5)
                 
@@ -881,7 +939,7 @@ class PageNavigator:
                 if test_count > 0:
                     test_info = tk.Label(q_frame, 
                                        text=f"Šis jautājums tiks pārbaudīts ar {test_count} testu gadījumiem", 
-                                       font=('Arial', 9), bg='#f9f9f9', fg='blue')
+                                       font=('Arial', 9), bg=colDark, fg=colWhite)
                     test_info.pack(anchor='w', padx=15, pady=3)
                 
                 # Koda redaktors
@@ -890,7 +948,11 @@ class PageNavigator:
                                                         height=8,
                                                         bg='#1e1e1e',
                                                         fg='#d4d4d4',
-                                                        insertbackground='white')
+                                                        insertbackground='white',
+                                                        highlightbackground=colCyan,
+                                                        highlightcolor=colCyan,
+                                                        highlightthickness=1,
+                                                        bd=0)
                 code_editor.pack(fill=tk.X, padx=15, pady=10)
                 
                 # Ielādēt saglabāto kodu vai sākuma kodu
@@ -920,28 +982,29 @@ class PageNavigator:
                             result_label = tk.Label(q_frame, 
                                                    text=f"Pareizi! Visi {result['passed']}/{result['total']} testi nokārtoti ({result['time']:.4f}s)", 
                                                    font=('Arial', 10, 'bold'), 
-                                                   bg='#f9f9f9', fg='green')
+                                                   bg=colDark, fg=colWhite)
                         else:
                             result_label = tk.Label(q_frame, 
                                                    text=f"Nepareizi! Nokārtoti tikai {result['passed']}/{result['total']} testi", 
                                                    font=('Arial', 10, 'bold'), 
-                                                   bg='#f9f9f9', fg='red')
+                                                   bg=colDark, fg=colWhite)
                         result_label.pack(anchor='w', padx=15, pady=(5, 5))
                         
                         # Parādīt detalizētus rezultātus
                         if 'details' in result:
                             details_text = "\n".join(result['details'])
                             details_label = tk.Label(q_frame, text=details_text,
-                                                   font=('Courier', 9), bg='#f9f9f9', 
-                                                   justify=tk.LEFT, fg='gray')
+                                                   font=('Courier', 9), bg=colDark, fg=colWhite, 
+                                                   justify=tk.LEFT)
                             details_label.pack(anchor='w', padx=30, pady=(0, 10))
         
         # Iesniegt pogu
         if not self.test_submitted:
             submit_btn = tk.Button(scrollable_frame, text="Iesniegt Testu", 
                                   command=lambda: self.submit_test(test_key, test, scrollable_frame),
-                                  bg='#2196F3', fg='white', font=('Arial', 12, 'bold'),
-                                  padx=30, pady=10)
+                                  bg=colCyan, fg=colWhite, font=('Arial', 12, 'bold'),
+                                  padx=30, pady=10,
+                                  activebackground=colLCyan, activeforeground=colDCyan)
             submit_btn.pack(pady=30)
         else:
             # Parādīt galīgos rezultātus
@@ -1011,24 +1074,24 @@ class PageNavigator:
         passed = percentage >= test['passing_score']
         
         # Rezultātu kaste
-        results_frame = tk.Frame(parent_frame, bg='#e3f2fd', relief=tk.RAISED, bd=3)
+        results_frame = tk.Frame(parent_frame, bg=colDark, relief=tk.RAISED, bd=3)
         results_frame.pack(fill=tk.X, padx=30, pady=20)
         
         results_title = tk.Label(results_frame, text="Testa Rezultāti", 
-                                font=('Arial', 16, 'bold'), bg='#e3f2fd')
+                                font=('Arial', 16, 'bold'), bg=colDark, fg=colWhite)
         results_title.pack(pady=10)
         
         score_label = tk.Label(results_frame, 
                               text=f"Rezultāts: {earned_points}/{total_points} ({percentage:.1f}%)", 
-                              font=('Arial', 14), bg='#e3f2fd')
+                              font=('Arial', 14), bg=colDark, fg=colWhite)
         score_label.pack(pady=5)
         
         if passed:
             status_label = tk.Label(results_frame, text="NOKĀRTOTS!", 
-                                   font=('Arial', 14, 'bold'), bg='#e3f2fd', fg='green')
+                                   font=('Arial', 14, 'bold'), bg=colDark, fg=colWhite)
         else:
             status_label = tk.Label(results_frame, text="NENOKĀRTOTS", 
-                                   font=('Arial', 14, 'bold'), bg='#e3f2fd', fg='red')
+                                   font=('Arial', 14, 'bold'), bg=colDark, fg=colWhite)
         status_label.pack(pady=5)
         
         # Atkārtot pogu
@@ -1380,28 +1443,31 @@ class PageNavigator:
         
         label = tk.Label(self.content_frame, 
                         text=f"Nav {page_type} satura priekš {chapter} - Lapa {page}", 
-                        font=('Arial', 14), bg='white')
+                        font=('Arial', 14), bg=colDark, fg=colWhite)
         label.pack(pady=50)
         
         self.add_navigation_buttons()
     
     def add_navigation_buttons(self):
-        nav_frame = tk.Frame(self.content_frame, bg='white')
+        nav_frame = tk.Frame(self.content_frame, bg=colDark)
         nav_frame.pack(side=tk.BOTTOM, pady=20)
         
         prev_btn = tk.Button(nav_frame, text="Iepriekšējā", 
                            command=self.previous_page,
-                           padx=15, pady=5)
+                           bg=colCyan, fg=colWhite, padx=15, pady=5,
+                           activebackground=colLCyan, activeforeground=colDCyan)
         prev_btn.pack(side=tk.LEFT, padx=10)
         
         home_btn = tk.Button(nav_frame, text="Sākums", 
                            command=self.show_welcome_page,
-                           padx=15, pady=5)
+                           bg=colCyan, fg=colWhite, padx=15, pady=5,
+                           activebackground=colLCyan, activeforeground=colDCyan)
         home_btn.pack(side=tk.LEFT, padx=10)
         
         next_btn = tk.Button(nav_frame, text="Nākamā →", 
                            command=self.next_page,
-                           padx=15, pady=5)
+                           bg=colCyan, fg=colWhite, padx=15, pady=5,
+                           activebackground=colLCyan, activeforeground=colDCyan)
         next_btn.pack(side=tk.LEFT, padx=10)
     
     def previous_page(self):
