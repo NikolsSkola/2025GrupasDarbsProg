@@ -6,6 +6,13 @@ from tkinter import ttk, messagebox
 THIS_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH  = os.path.join(THIS_DIR, "TestDB.db")
 
+colDark = "#373E40"
+colDCyan = "#305252"
+colCyan = "#488286"
+colGray = "#77878B"
+colLCyan = "#B7D5D4"
+colWhite = "#FFFFFF"
+
 
 #DB savienojums
 def db():
@@ -412,6 +419,7 @@ class AdminApp(tk.Tk):
         self.title("TestDB — Administratora rīks")
         self.geometry("1150x720")
         self.minsize(900, 500)
+        self.configure(bg=colDark)
 
         self.current_type = None
         self.current_id   = None
@@ -425,27 +433,62 @@ class AdminApp(tk.Tk):
 
     #Saskarne
     def _build_toolbar(self):
-        bar = tk.Frame(self, padx=6, pady=6)
+        bar = tk.Frame(self, bg=colDark, padx=6, pady=6)
         bar.pack(fill="x")
 
-        tk.Button(bar, text="+ Pievienot bērnu", width=18,
-                  command=self.on_add).pack(side="left", padx=2)
-        tk.Button(bar, text="Dzēst", width=10,
-                  command=self.on_delete).pack(side="left", padx=2)
-        tk.Button(bar, text="Saglabāt izmaiņas", width=18,
-                  command=self.on_save).pack(side="left", padx=2)
-        tk.Button(bar, text="Pārlādēt no DB", width=14,
-                  command=self.refresh_tree).pack(side="left", padx=2)
+        for text, cmd, width in [
+            ("+ Pievienot bērnu", self.on_add, 18),
+            ("Dzēst", self.on_delete, 10),
+            ("Saglabāt izmaiņas", self.on_save, 18),
+            ("Pārlādēt no DB", self.refresh_tree, 14),
+        ]:
+            tk.Button(bar, text=text, width=width, command=cmd,
+                      bg=colCyan, fg=colWhite, relief=tk.FLAT,
+                      activebackground=colLCyan, activeforeground=colDCyan,
+                      bd=0).pack(side="left", padx=2)
 
         tk.Label(bar, text=f"  DB:  {DB_PATH}",
-                 anchor="w", fg="gray").pack(side="left", padx=10)
+                 bg=colDark, fg=colGray, anchor="w").pack(side="left", padx=10)
 
     def _build_body(self):
-        paned = tk.PanedWindow(self, orient="horizontal", sashrelief="raised", sashwidth=4)
+        paned = tk.PanedWindow(self, orient="horizontal", sashrelief="raised", sashwidth=4, bg=colDark)
         paned.pack(fill="both", expand=True, padx=6, pady=2)
 
-        tree_frame = tk.Frame(paned)
-        self.tree = ttk.Treeview(tree_frame, show="tree", selectmode="browse")
+        tree_frame = tk.Frame(paned, bg=colDark)
+        style = ttk.Style()
+        style.theme_use('default')
+        style.configure("Treeview",
+                        background=colDark,
+                        foreground=colWhite,
+                        fieldbackground=colDark,
+                        borderwidth=0)
+        style.configure("Treeview.Heading",
+                        background=colDark,
+                        foreground=colWhite)
+        style.map('Treeview',
+                  background=[('selected', colCyan)],
+                  foreground=[('selected', colWhite)])
+        style.configure("Vertical.TScrollbar",
+                        background=colDark,
+                        troughcolor=colDark,
+                        arrowcolor=colWhite)
+        style.configure("Dark.TCombobox",
+                        fieldbackground='#1e1e1e',
+                        background='#1e1e1e',
+                        foreground=colWhite,
+                        bordercolor=colCyan,
+                        lightcolor=colCyan,
+                        darkcolor=colCyan,
+                        relief='flat',
+                        borderwidth=1)
+        style.map("Dark.TCombobox",
+                  fieldbackground=[('readonly', '#1e1e1e')],
+                  foreground=[('readonly', colWhite)],
+                  selectbackground=[('readonly', colCyan)],
+                  selectforeground=[('readonly', colWhite)],
+                  bordercolor=[('focus', colCyan), ('!focus', colCyan)])
+
+        self.tree = ttk.Treeview(tree_frame, show="tree", selectmode="browse", style="Treeview")
         ysb = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=ysb.set)
         self.tree.pack(side="left", fill="both", expand=True)
@@ -454,7 +497,7 @@ class AdminApp(tk.Tk):
         paned.add(tree_frame, minsize=320, width=440)
 
         # Formas konteineris
-        self.form_outer = tk.Frame(paned)
+        self.form_outer = tk.Frame(paned, bg=colDark)
         paned.add(self.form_outer, minsize=400)
 
         self._build_empty_form()
@@ -465,11 +508,12 @@ class AdminApp(tk.Tk):
         tk.Label(self.form_outer,
                  text="Izvēlies elementu kreisajā kokā, lai to rediģētu.\n\n"
                       "Pievienot jaunu sadaļu: izvēlies tukšu vietu un spied “+ Pievienot bērnu”.",
-                 fg="gray", justify="left", padx=20, pady=20).pack(anchor="nw")
+                 bg=colDark, fg=colGray, justify="left", padx=20, pady=20).pack(anchor="nw")
 
     def _build_status(self):
         self.status = tk.Label(self, text="Gatavs.", anchor="w",
-                               bd=1, relief="sunken", padx=6, pady=2)
+                               bd=1, relief="sunken", bg=colDark, fg=colWhite,
+                               padx=6, pady=2)
         self.status.pack(fill="x", side="bottom")
 
     def set_status(self, msg):
@@ -553,24 +597,27 @@ class AdminApp(tk.Tk):
             return
 
         # Galvene
-        hdr = tk.Frame(self.form_outer, padx=12, pady=10)
+        hdr = tk.Frame(self.form_outer, bg=colDark, padx=12, pady=10)
         hdr.pack(fill="x")
-        tk.Label(hdr, text=spec["label"], font=("Arial", 14, "bold")).pack(anchor="w")
+        tk.Label(hdr, text=spec["label"], font=("Arial", 14, "bold"), bg=colDark, fg=colWhite).pack(anchor="w")
         tk.Label(hdr, text=f"id = {node_id}    tabula = {spec['table']}",
-                 fg="gray").pack(anchor="w")
+                 bg=colDark, fg=colGray).pack(anchor="w")
 
         ttk.Separator(self.form_outer, orient="horizontal").pack(fill="x", padx=12)
 
-        body_outer = tk.Frame(self.form_outer)
+        body_outer = tk.Frame(self.form_outer, bg=colDark)
         body_outer.pack(fill="both", expand=True, padx=12, pady=8)
 
-        canvas = tk.Canvas(body_outer, highlightthickness=0)
-        vsb = ttk.Scrollbar(body_outer, orient="vertical", command=canvas.yview)
+        content_border = tk.Frame(body_outer, bg=colCyan, bd=0)
+        content_border.pack(fill="both", expand=True, padx=2, pady=2)
+
+        canvas = tk.Canvas(content_border, bg=colDark, bd=0, highlightthickness=0)
+        vsb = ttk.Scrollbar(content_border, orient="vertical", command=canvas.yview)
         canvas.configure(yscrollcommand=vsb.set)
         canvas.pack(side="left", fill="both", expand=True)
         vsb.pack(side="right", fill="y")
 
-        body = tk.Frame(canvas)
+        body = tk.Frame(canvas, bg=colDark)
         body_id = canvas.create_window((0, 0), window=body, anchor="nw")
 
         def _on_body_configure(_e):
@@ -586,39 +633,48 @@ class AdminApp(tk.Tk):
             col, label, widget = fld[0], fld[1], fld[2]
             opts = fld[3] if len(fld) > 3 else None
 
-            tk.Label(body, text=label, anchor="w").pack(fill="x", pady=(8, 2))
+            tk.Label(body, text=label, anchor="w", bg=colDark, fg=colWhite).pack(fill="x", pady=(8, 2))
             val = rec[col] if col in rec.keys() else ""
             val = "" if val is None else str(val)
 
             if widget == "entry":
-                w = tk.Entry(body)
+                w = tk.Entry(body, bg='#1e1e1e', fg='#d4d4d4', insertbackground='white',
+                             highlightbackground=colCyan, highlightcolor=colCyan,
+                             highlightthickness=1, bd=0)
                 w.insert(0, val)
                 w.pack(fill="x")
 
             elif widget == "readonly":
-                w = tk.Entry(body)
+                w = tk.Entry(body, bg='#1e1e1e', fg='#d4d4d4', insertbackground='white',
+                             readonlybackground='#1e1e1e', highlightbackground=colCyan, highlightcolor=colCyan,
+                             highlightthickness=1, bd=0)
                 w.insert(0, val)
                 w.config(state="readonly")
                 w.pack(fill="x")
 
             elif widget == "combo":
-                w = ttk.Combobox(body, values=opts, state="readonly")
+                w = ttk.Combobox(body, values=opts, state="readonly", style="Dark.TCombobox")
                 w.set(val)
                 w.pack(fill="x")
 
             elif widget == "text":
-                fr = tk.Frame(body)
+                fr = tk.Frame(body, bg=colDark)
                 fr.pack(fill="both", expand=False)
                 # garums atkarīgs no satura
                 height = 8 if len(val) > 80 or "\n" in val else 4
-                w = tk.Text(fr, height=height, wrap="word", undo=True)
+                w = tk.Text(fr, height=height, wrap="word", undo=True,
+                            bg='#1e1e1e', fg='#d4d4d4', insertbackground='white',
+                            highlightbackground=colCyan, highlightcolor=colCyan,
+                            highlightthickness=1, bd=0)
                 sb = ttk.Scrollbar(fr, orient="vertical", command=w.yview)
                 w.configure(yscrollcommand=sb.set)
                 w.pack(side="left", fill="both", expand=True)
                 sb.pack(side="right", fill="y")
                 w.insert("1.0", val)
             else:
-                w = tk.Entry(body)
+                w = tk.Entry(body, bg='#1e1e1e', fg='#d4d4d4', insertbackground='white',
+                             highlightbackground=colCyan, highlightcolor=colCyan,
+                             highlightthickness=1, bd=0)
                 w.insert(0, val)
                 w.pack(fill="x")
 
@@ -725,17 +781,27 @@ class ChooseTypeDialog(tk.Toplevel):
         self.title("Izvēlies bērna tipu")
         self.resizable(False, False)
         self.result = None
+        self.configure(bg=colDark)
 
         tk.Label(self, text="Kādu bērnu pievienot?",
-                 padx=20, pady=10).pack(anchor="w")
+                 bg=colDark, fg=colWhite, padx=20, pady=10).pack(anchor="w")
         self.var = tk.StringVar(value=options[0])
         for o in options:
             tk.Radiobutton(self, text=ENTITY[o]["label"], variable=self.var,
-                           value=o).pack(anchor="w", padx=20)
+                           value=o, bg=colDark, fg=colWhite,
+                           selectcolor=colCyan,
+                           activebackground=colDark,
+                           activeforeground=colWhite).pack(anchor="w", padx=20)
 
-        bf = tk.Frame(self); bf.pack(pady=12)
-        tk.Button(bf, text="OK", width=10, command=self.ok).pack(side="left", padx=5)
-        tk.Button(bf, text="Atcelt", width=10, command=self.cancel).pack(side="left", padx=5)
+        bf = tk.Frame(self, bg=colDark); bf.pack(pady=12)
+        tk.Button(bf, text="OK", width=10, command=self.ok,
+                  bg=colCyan, fg=colWhite, relief=tk.FLAT,
+                  activebackground=colLCyan, activeforeground=colDCyan,
+                  bd=0).pack(side="left", padx=5)
+        tk.Button(bf, text="Atcelt", width=10, command=self.cancel,
+                  bg=colCyan, fg=colWhite, relief=tk.FLAT,
+                  activebackground=colLCyan, activeforeground=colDCyan,
+                  bd=0).pack(side="left", padx=5)
 
         self.transient(master)
         self.grab_set()
