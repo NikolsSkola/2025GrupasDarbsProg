@@ -1442,7 +1442,7 @@ class BlackjackGUI:
 
         # Stable internal IDs — never translated, used as dict keys throughout
         TAB_IDS = ["settings", "bots", "stats", "auto"]
-        TAB_ICONS = ["Settings", "Bots", "Strats", "Auto"]
+        TAB_ICONS = ["⚙️", "🤖", "📊", "🔄"]
         TAB_KEYS = ["tab_settings", "tab_bots", "tab_stats", "tab_auto"]
 
         self._tab_frames       = {}   # id → inner Frame
