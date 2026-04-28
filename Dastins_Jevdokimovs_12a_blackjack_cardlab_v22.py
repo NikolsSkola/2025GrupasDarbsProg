@@ -11,7 +11,6 @@ import math
 import sqlite3
 import zipfile, xml.etree.ElementTree as _ET
 
-
 def _get_downloads_dir():
     dl = os.path.join(os.path.expanduser("~"), "Downloads")
     if not os.path.isdir(dl):
@@ -71,8 +70,10 @@ def _build_strategy_arrays():
             soft[total * 12 + up] = sa
     return hard, soft
 
-_DECK_TUPLES_CACHE: dict = {}  
+
+_DECK_TUPLES_CACHE: dict = {}
 _HARD_ARR, _SOFT_ARR = _build_strategy_arrays()
+
 
 def _get_deck_template(num_decks: int):
     if num_decks not in _DECK_TUPLES_CACHE:
@@ -94,7 +95,6 @@ def _mp_worker(args):
 
     pw = dw = draws = 0
     bw = [0] * num_bots
-
     player_counts = [0, 0, 0]
     bot_counts = [[0, 0, 0] for _ in range(num_bots)]
 
@@ -120,13 +120,14 @@ def _mp_worker(args):
             bots.append([working[p], working[p+1]]); p += 2
         pos = p
 
+        #Upcard value (cap face cards at 10, ace = 11)
         up_raw = d1[0]
         up = up_raw if up_raw <= 11 else 10
 
-    #Pārbauda vai dīlerim ir blackjack
+        #Check dealer blackjack
         d_bj = (d0[0] + d1[0] == 21 and d0[1] != d1[1] or
                 (d0[0] == 11 and d1[0] == 10) or (d0[0] == 10 and d1[0] == 11))
-
+        # Accurate BJ check: 2 cards totalling 21
         dt_init = d0[0] + d1[0]
         da_init = int(d0[1]) + int(d1[1])
         _t = dt_init; _a = da_init
@@ -151,7 +152,7 @@ def _mp_worker(args):
                 else:
                     dw += 1; bot_counts[i][1] += 1
         else:
-
+            #Player plays basic strategy
             if pc is not None:
                 tv = pc[0][0]+pc[1][0]; ta = int(pc[0][1])+int(pc[1][1])
                 while tv > 21 and ta: tv -= 10; ta -= 1
@@ -170,6 +171,7 @@ def _mp_worker(args):
             else:
                 pv = -1
 
+            #Bots play their strategies
             bvals = []
             for i in range(num_bots):
                 bc = bots[i]
@@ -190,6 +192,7 @@ def _mp_worker(args):
                     if act == 2: break
                 bvals.append(tv)
 
+            # Dealer plays
             dt = dt_init; da = da_init
             while dt > 21 and da: dt -= 10; da -= 1
             while dt < 17:
@@ -198,6 +201,7 @@ def _mp_worker(args):
                 if c[1]: da += 1
                 while dt > 21 and da: dt -= 10; da -= 1
 
+            # Outcomes
             if pc is not None:
                 if pv > 21:   dw += 1; player_counts[1] += 1
                 elif dt > 21 or pv > dt: pw += 1; player_counts[0] += 1
@@ -228,37 +232,37 @@ def _strategy_to_arrays(strategy):
     return hard, soft
 
 LANG = {
-    #Menu
-    "menu_start":       {"lv": "Sākt spēli",       "en": "Start Game"},
-    "menu_tutorial":    {"lv": "Pamācība",          "en": "Tutorial"},
-    "menu_quit":        {"lv": "Iziet",             "en": "Quit"},
+    # ── Menu ──
+    "menu_start":       {"lv": "▶   Sākt spēli",       "en": "▶   Start Game"},
+    "menu_tutorial":    {"lv": "📖   Pamācība",          "en": "📖   Tutorial"},
+    "menu_quit":        {"lv": "✕   Iziet",             "en": "✕   Quit"},
     "menu_subtitle":    {"lv": "Blackjack Simulator",   "en": "Blackjack Simulator"},
 
-    #Top bar
-    "exit_btn":         {"lv": "Iziet",              "en": "Exit"},
+    # ── Top bar ──
+    "exit_btn":         {"lv": "✕  Iziet",              "en": "✕  Exit"},
 
-    #Sadaļas
+    # ── Tab names ──
     "tab_settings":     {"lv": "Iestat.",               "en": "Settings"},
     "tab_bots":         {"lv": "Boti",                  "en": "Bots"},
-    "tab_stats":        {"lv": "Stats",                 "en": "Stats"},
+    "tab_stats":        {"lv": "Statistika",                 "en": "Stats"},
     "tab_auto":         {"lv": "Auto",                  "en": "Auto"},
 
-    #Iestatījumi
+    # ── Settings tab ──
     "s_decks":          {"lv": "Kāršu kavu skaits  (maks. 250)",  "en": "Number of decks  (max 250)"},
     "s_bots":           {"lv": "Botu skaits  (maks. 100)",        "en": "Number of bots  (max 100)"},
     "s_your_name":      {"lv": "Tavs vārds",                      "en": "Your name"},
     "s_play_self":      {"lv": "Spēlēt pašam",                    "en": "Play yourself"},
     "s_anim_speed":     {"lv": "Animācijas ātrums",               "en": "Animation speed"},
-    "s_restart":        {"lv": "Restartēt galdu",             "en": "Restart table"},
-    "s_tutorial":       {"lv": "Pamācība",                    "en": "Tutorial"},
-    "s_save_stats":     {"lv": "Saglabāt .txt (Auto-replay)",  "en": "Save .txt (Auto-replay)"},
-    "s_save_sqlite":    {"lv": "Saglabāt SQLite DB",          "en": "Save to SQLite DB"},
-    "s_save_excel":     {"lv": "Saglabāt .xlsx (Auto-replay)", "en": "Save .xlsx (Auto-replay)"},
+    "s_restart":        {"lv": "🔄  Restartēt galdu",             "en": "🔄  Restart table"},
+    "s_tutorial":       {"lv": "📖  Pamācība",                    "en": "📖  Tutorial"},
+    "s_save_stats":     {"lv": "💾  Saglabāt .txt (Auto-replay)",  "en": "💾  Save .txt (Auto-replay)"},
+    "s_save_sqlite":    {"lv": "🗄️  Saglabāt SQLite DB",          "en": "🗄️  Save to SQLite DB"},
+    "s_save_excel":     {"lv": "📊  Saglabāt .xlsx (Auto-replay)", "en": "📊  Save .xlsx (Auto-replay)"},
     "d_sqlite_saved":   {"lv": "Saglabāts SQLite",                "en": "SQLite Saved"},
     "d_sqlite_msg":     {"lv": "SQLite datubāze saglabāta:\n",    "en": "SQLite database saved:\n"},
     "d_excel_saved":    {"lv": "Saglabāts Excel",                 "en": "Excel Saved"},
     "d_excel_msg":      {"lv": "Excel fails saglabāts:\n",        "en": "Excel file saved:\n"},
-    "s_save_csv":       {"lv": "Saglabāt .csv (Analīzei)",     "en": "Save .csv (Analysis)"},
+    "s_save_csv":       {"lv": "📋  Saglabāt .csv (Analīzei)",     "en": "📋  Save .csv (Analysis)"},
     "d_csv_saved":      {"lv": "Saglabāts CSV",                    "en": "CSV Saved"},
     "d_csv_msg":        {"lv": "CSV fails saglabāts:\n",           "en": "CSV file saved:\n"},
     "xl_summary":       {"lv": "Kopsavilkums",                    "en": "Summary"},
@@ -278,10 +282,10 @@ LANG = {
     "xl_decks":         {"lv": "Kāršu kavas",                     "en": "Decks"},
     "xl_lang":          {"lv": "Valoda",                          "en": "Language"},
 
-    #Boti
+    # ── Bots tab ──
     "b_no_bots":        {"lv": "(Botu nav)",                      "en": "(No bots)"},
 
-    #Statistika
+    # ── Stats tab ──
     "st_dealer":        {"lv": "Dealer: ",                        "en": "Dealer: "},
     "st_draws":         {"lv": "Neizšķirts: ",                    "en": "Draws: "},
     "st_player_col":    {"lv": "Spēlētājs",                       "en": "Player"},
@@ -289,27 +293,27 @@ LANG = {
     "st_lose_col":      {"lv": "Zd",                              "en": "Ls"},
     "st_draw_col":      {"lv": "Nz",                              "en": "Dr"},
     "st_pct_col":       {"lv": "Uzv%",                            "en": "Win%"},
-    "st_clear":         {"lv": "Notīrīt rezultātus",          "en": "Clear results"},
+    "st_clear":         {"lv": "🗑  Notīrīt rezultātus",          "en": "🗑  Clear results"},
     "st_card_dist":     {"lv": "Kāršu sadalījums",               "en": "Card distribution"},
 
-    #Auto sadaļa
+    # ── Auto tab ──
     "a_games":          {"lv": "Spēļu skaits  (maks. 100 000)",  "en": "Number of games  (max 100 000)"},
-    "a_start":          {"lv": "Sākt Auto-replay",           "en": "Start Auto-replay"},
-    "a_stop":           {"lv": "Apturēt",                     "en": "Stop"},
+    "a_start":          {"lv": "▶▶  Sākt Auto-replay",           "en": "▶▶  Start Auto-replay"},
+    "a_stop":           {"lv": "⏹  Apturēt",                     "en": "⏹  Stop"},
 
-    #Spēles ziņas
+    # ── Game messages ──
     "g_dealer":         {"lv": "DEALER",                          "en": "DEALER"},
     "g_showing":        {"lv": "Showing: ",                       "en": "Showing: "},
     "g_total":          {"lv": "Total: ",                         "en": "Total: "},
     "g_hit":            {"lv": "Hit",                             "en": "Hit"},
     "g_stand":          {"lv": "Stand",                           "en": "Stand"},
     "g_double":         {"lv": "Double",                          "en": "Double"},
-    "g_hint":           {"lv": "Mājiena",                      "en": "Hint"},
-    "g_play_again":     {"lv": "Spēlēt vēlreiz",              "en": "Play Again"},
-    "g_autoreplay_running": {"lv": "Auto-replay — skatiet progresu →",
-                             "en": "Auto-replay — see progress →"},
+    "g_hint":           {"lv": "💡 Mājiens",                      "en": "💡 Hint"},
+    "g_play_again":     {"lv": "▶  Spēlēt vēlreiz",              "en": "▶  Play Again"},
+    "g_autoreplay_running": {"lv": "⚡ Auto-replay — skatiet progresu →",
+                             "en": "⚡ Auto-replay — see progress →"},
 
-    #Rezultāti
+    # ── Results ──
     "r_dealer_bj":      {"lv": "Dealer Blackjack!",              "en": "Dealer Blackjack!"},
     "r_draw":           {"lv": "Neizšķirts",                     "en": "Push"},
     "r_lose":           {"lv": "Zaudē",                          "en": "Lose"},
@@ -318,7 +322,7 @@ LANG = {
     "r_push":           {"lv": "Push",                           "en": "Push"},
     "r_you":            {"lv": "Tu",                             "en": "You"},
 
-    #Dialogs
+    # ── Dialogs ──
     "d_error":          {"lv": "Kļūda",                          "en": "Error"},
     "d_invalid_settings": {"lv": "Nederīgi iestatījumi!",        "en": "Invalid settings!"},
     "d_max_decks":      {"lv": "Maksimālais kāršu kavu skaits ir 250!",
@@ -338,20 +342,20 @@ LANG = {
     # ── Strategy editor ──
     "se_hint_label":    {"lv": "Klikšķini šūnu lai mainītu  |  Klikšķini rindas/kolonnas etiķeti lai aizpildītu visu:",
                          "en": "Click cell to cycle  |  Click row/column label to fill entire row/col:"},
-    "se_reset":         {"lv": "Pamata",                      "en": "Default"},
-    "se_save":          {"lv": "Saglabāt",                    "en": "Save"},
-    "se_load":          {"lv": "Ielādēt ",                    "en": "Load"},
-    "se_close":         {"lv": "Aizvērt",                     "en": "Close"},
+    "se_reset":         {"lv": "↩️ Pamata",                      "en": "↩️ Default"},
+    "se_save":          {"lv": "💾 Saglabāt",                    "en": "💾 Save"},
+    "se_load":          {"lv": "— Ielādēt —",                    "en": "— Load —"},
+    "se_close":         {"lv": "✅ Aizvērt",                     "en": "✅ Close"},
     "se_pick_action":   {"lv": "Izvēlies darbību",               "en": "Pick action"},
     "se_fill_with":     {"lv": "Ar ko aizpildīt?",               "en": "Fill with?"},
 
     # ── Tutorial ──
-    "t_prev":           {"lv": "Iepriekšējā",                  "en": "Previous"},
-    "t_next":           {"lv": "Nākamā",                       "en": "Next"},
-    "t_close":          {"lv": "Aizvērt",                     "en": "Close"},
+    "t_prev":           {"lv": "◀ Iepriekšējā",                  "en": "◀ Previous"},
+    "t_next":           {"lv": "Nākamā ▶",                       "en": "Next ▶"},
+    "t_close":          {"lv": "✅ Aizvērt",                     "en": "✅ Close"},
 
     # ── Stats file ──
-    "f_title":          {"lv": "CardLab - Blackjack statistika", "en": "CardLab - Blackjack statistics"},
+    "f_title":          {"lv": "CardLab — Blackjack statistika", "en": "CardLab — Blackjack statistics"},
     "f_saved_at":       {"lv": "Saglabāts:",                     "en": "Saved:"},
     "f_total_games":    {"lv": "Kopā spēles:",                   "en": "Total games:"},
     "f_player_info":    {"lv": "SPĒLĒTĀJU INFORMĀCIJA:",         "en": "PLAYER INFORMATION:"},
@@ -374,25 +378,25 @@ LANG = {
     "f_game":           {"lv": "Spēle",                          "en": "Game"},
     "f_no_log":         {"lv": "(Spēle-pa-spēlei žurnāls nav pieejams auto-replay režīmā)",
                          "en": "(Per-game log not available in auto-replay mode)"},
-    "f_win_r":          {"lv": "Uzvara",                            "en": "Win"},
-    "f_lose_r":         {"lv": "Zaudējums",                           "en": "Lose"},
-    "f_draw_r":         {"lv": "Neizšķirts",                          "en": "Draw"},
+    "f_win_r":          {"lv": "Uzv",                            "en": "Win"},
+    "f_lose_r":         {"lv": "Zaud",                           "en": "Lose"},
+    "f_draw_r":         {"lv": "Neizš",                          "en": "Draw"},
 
-    #Presets
-    "p_basic":          {"lv": "Pamata",                      "en": "Basic"},
-    "p_aggressive":     {"lv": "Agresīvs",                   "en": "Aggressive"},
-    "p_conservative":   {"lv": "Konservatīvs",               "en": "Conservative"},
-    "p_cautious":       {"lv": "Piesardzīgs",                 "en": "Cautious"},
-    "p_custom":         {"lv": "Custom",                      "en": "Custom"},
+    # ── Preset names (kept in Latvian/universal — only non-emoji part changes) ──
+    "p_basic":          {"lv": "🎯 Pamata",                      "en": "🎯 Basic"},
+    "p_aggressive":     {"lv": "🔥 Agresīvs",                   "en": "🔥 Aggressive"},
+    "p_conservative":   {"lv": "🛡️ Konservatīvs",               "en": "🛡️ Conservative"},
+    "p_cautious":       {"lv": "🐢 Piesardzīgs",                 "en": "🐢 Cautious"},
+    "p_custom":         {"lv": "✏️ Custom",                      "en": "✏️ Custom"},
 
-    #Autoreplay
+    # ── Auto-replay status ──
     "ar_games":         {"lv": " spēles...",                     "en": " games..."},
-    "ar_done":          {"lv": "Pabeigts!",                    "en": "Done!"},
-    "ar_stopped":       {"lv": "Apturēts",                    "en": "Stopped"},
-    "ar_stopped_at":    {"lv": "Apturēts pie ",               "en": "Stopped at "},
+    "ar_done":          {"lv": "✔ Pabeigts!",                    "en": "✔ Done!"},
+    "ar_stopped":       {"lv": "⏹ Apturēts",                    "en": "⏹ Stopped"},
+    "ar_stopped_at":    {"lv": "⏹ Apturēts pie ",               "en": "⏹ Stopped at "},
 
-
-    "h_title":          {"lv": "Mājiena",                     "en": "Hint"},
+    # ── Hint popup ──
+    "h_title":          {"lv": "💡 Mājiena",                     "en": "💡 Hint"},
     "h_action_H":       {"lv": "Ņem karti (Hit)",               "en": "Take a card (Hit)"},
     "h_action_S":       {"lv": "Paliec (Stand)",                 "en": "Stay (Stand)"},
     "h_action_D":       {"lv": "Dubulto (Double)",               "en": "Double Down"},
@@ -401,27 +405,29 @@ LANG = {
     "h_soft":           {"lv": "Mīkstā roka",                   "en": "Soft hand"},
     "h_hard":           {"lv": "Cietā roka",                    "en": "Hard hand"},
 
-    #Tutorial
-    "tut_title":        {"lv": "CardLab - Pamācība",           "en": "CardLab - Tutorial"},
-    "tut_prev":         {"lv": "Iepriekšējā",                   "en": "Previous"},
-    "tut_next":         {"lv": "Nākamā",                        "en": "Next"},
-    "tut_close":        {"lv": "Aizvērt",                      "en": "Close"},
+    # ── Tutorial window ──
+    "tut_title":        {"lv": "📖 CardLab — Pamācība",           "en": "📖 CardLab — Tutorial"},
+    "tut_prev":         {"lv": "◀ Iepriekšējā",                   "en": "◀ Previous"},
+    "tut_next":         {"lv": "Nākamā ▶",                        "en": "Next ▶"},
+    "tut_close":        {"lv": "✅ Aizvērt",                      "en": "✅ Close"},
 
+    # ── Stats file save ──
+    "s_save_autoplay_only": {"lv": "💾  Saglabāt (tikai Auto-replay)",
+                              "en": "💾  Save (Auto-replay only)"},
 
-    "s_save_autoplay_only": {"lv": "Saglabāt (tikai Auto-replay)",
-                              "en": "Save (Auto-replay only)"},
-
-    #Spēlētāja vārds
+    # ── Default player name ──
     "default_player":   {"lv": "Spēlētājs",                     "en": "Player"},
 }
 
 def T(key):
+    """Return translated string for current language."""
     entry = LANG.get(key)
     if entry is None:
         return key
     return entry.get(_current_lang, entry.get("lv", key))
 
-_current_lang = "lv" 
+_current_lang = "lv"   # default language
+
 
 class Card:
     __slots__ = ("rank", "suit", "value", "_red")
@@ -484,6 +490,7 @@ class Hand:
         adjusted = False
         while total > 21 and aces:
             total -= 10; aces -= 1; adjusted = True
+        # soft = has at least one ace counted as 11
         soft = aces > 0 and total <= 21
         return total, soft
 
@@ -496,20 +503,23 @@ class Hand:
     def can_split(self):    return len(self.cards) == 2 and self.cards[0].rank == self.cards[1].rank
 
 
+# CONFIGURABLE STRATEGY TABLE
+
+# Dealer upcards as column indices: 2,3,4,5,6,7,8,9,10,A(11)
 UPCARD_COLS = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
 
+# Hard totals as row keys: 5-17+
+HARD_ROWS = list(range(5, 22))   # 5..21
 
-HARD_ROWS = list(range(5, 22))
+# Soft totals as row keys (the non-ace card value): A+2..A+9 → total 13..21
+SOFT_ROWS = list(range(13, 22))  # 13..21  (soft 13 = A+2, soft 21 = A+10)
 
-
-SOFT_ROWS = list(range(13, 22))
-
-ACTION_CYCLE = ['H', 'S', 'D', 'R']
+ACTION_CYCLE = ['H', 'S', 'D', 'R']   # R = Surrender (treated as H if not allowed)
 ACTION_COLORS = {
-    'H': '#27ae60',   
-    'S': '#e74c3c',
-    'D': '#f1c40f', 
-    'R': '#e67e22',  
+    'H': '#27ae60',   # green
+    'S': '#e74c3c',   # red
+    'D': '#f1c40f',   # yellow
+    'R': '#e67e22',   # orange
 }
 
 def _build_default_hard_table():
@@ -567,37 +577,44 @@ class BotStrategy:
         self.soft = _build_default_soft_table()
 
     def get_action(self, total, upcard, can_split, can_double, is_soft, hand):
+        # Normalize upcard (Ace = 11)
         up = upcard
-        if up > 11: up = 10
+        if up > 11: up = 10  # face cards all = 10
 
         if is_soft and total in self.soft:
             raw = self.soft[total].get(up, 'H')
         else:
+            # Clamp to table range
             key = min(max(total, 5), 21)
             raw = self.hard.get(key, {}).get(up, 'H')
 
+        # If action is D but can't double → fall back to H
         if raw == 'D' and not can_double:
             return 'H'
+        # If action is R (surrender) → treat as H (most games don't allow late surrender)
         if raw == 'R':
             return 'H'
         return raw
 
     def copy(self):
+        """Deep copy for thread snapshot."""
         import copy
         s = BotStrategy.__new__(BotStrategy)
         s.hard = copy.deepcopy(self.hard)
         s.soft = copy.deepcopy(self.soft)
         return s
 
+# PRESET STRATEGIES
 
 def _preset_names():
     return [T("p_basic"), T("p_aggressive"), T("p_conservative"), T("p_cautious"), T("p_custom")]
 
-PRESET_NAMES = ["Pamata", "Agresīvs", "Konservatīvs", "Piesardzīgs", "Custom"]
+PRESET_NAMES = ["🎯 Pamata", "🔥 Agresīvs", "🛡️ Konservatīvs", "🐢 Piesardzīgs", "✏️ Custom"]
 
 def _make_preset(name: str) -> BotStrategy:
-    s = BotStrategy()
+    s = BotStrategy()  # starts as basic strategy
     if name == "🔥 Agresīvs":
+        # Double on everything 9-11, hit aggressively (never stand below 18)
         for total in HARD_ROWS:
             for up in UPCARD_COLS:
                 if 9 <= total <= 11:
@@ -613,6 +630,7 @@ def _make_preset(name: str) -> BotStrategy:
                 else:
                     s.soft[total][up] = 'S'
     elif name == "🛡️ Konservatīvs":
+        # Stand on anything 13+, double only on 10-11
         for total in HARD_ROWS:
             for up in UPCARD_COLS:
                 if total >= 13:
@@ -625,28 +643,47 @@ def _make_preset(name: str) -> BotStrategy:
             for up in UPCARD_COLS:
                 s.soft[total][up] = 'S' if total >= 17 else 'H'
     elif name == "🐢 Piesardzīgs":
+        # Never double, stand on 15+
         for total in HARD_ROWS:
             for up in UPCARD_COLS:
                 s.hard[total][up] = 'S' if total >= 15 else 'H'
         for total in SOFT_ROWS:
             for up in UPCARD_COLS:
                 s.soft[total][up] = 'S' if total >= 18 else 'H'
+    # "🎯 Pamata" and "✏️ Custom" → keep default basic strategy
     return s
 
-_GLOBAL_STRATEGY = BotStrategy()
+
+# ─── Global hint strategy (basic strategy, used for player hint button) ───────
+# Pre-built singleton — avoids creating a new BotStrategy object on every call
+_GLOBAL_STRATEGY = BotStrategy()   # initialised once after BotStrategy is defined
 
 class Strategy:
     @staticmethod
     def get_action(total, upcard, can_split, can_double, is_soft, hand):
         return _GLOBAL_STRATEGY.get_action(total, upcard, can_split, can_double, is_soft, hand)
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# STRATEGY EDITOR WINDOW
+# ──────────────────────────────────────────────────────────────────────────────
+
 class StrategyEditorWindow:
+    """
+    Popup: full hard + soft strategy table.
+    • Click cell → cycle H→S→D→R
+    • Row label button → fill entire row with chosen action
+    • Column header button → fill entire column with chosen action
+    • Save/Load named strategies (persisted to disk via parent app)
+    """
+
     def __init__(self, parent, bot_strategy: BotStrategy, bot_name: str,
                  app=None, on_close=None):
         self.strategy  = bot_strategy
-        self.app       = app
+        self.app       = app        # reference to BlackjackGUI for save/load
         self.on_close  = on_close
-        self._btn_refs = {}
+        self._btn_refs = {}         # (table_id, row_key, upcard) → Button
+
         self.win = tk.Toplevel(parent)
         self.win.title(f"⚙️ Stratēģija — {bot_name}")
         self.win.configure(bg="#1a1a2e")
@@ -654,8 +691,11 @@ class StrategyEditorWindow:
         self.win.protocol("WM_DELETE_WINDOW", self._close)
         self._build_ui()
 
+    # ── build ──────────────────────────────────────
     def _build_ui(self):
         root = self.win
+
+        # Legend
         leg = tk.Frame(root, bg="#1a1a2e")
         leg.pack(fill=tk.X, padx=10, pady=(8, 4))
         tk.Label(leg, text="Klikšķini šūnu lai mainītu  |  Klikšķini rindas/kolonnas etiķeti lai aizpildītu visu:",
@@ -664,6 +704,7 @@ class StrategyEditorWindow:
             tk.Label(leg, text=act, font=("Arial", 9, "bold"),
                      bg=col, fg="white", padx=6, pady=1).pack(side=tk.RIGHT, padx=1)
 
+        # Tables
         main = tk.Frame(root, bg="#1a1a2e")
         main.pack(fill=tk.BOTH, expand=True, padx=10, pady=2)
 
@@ -681,12 +722,12 @@ class StrategyEditorWindow:
         bot = tk.Frame(root, bg="#1a1a2e")
         bot.pack(fill=tk.X, padx=10, pady=(4, 8))
 
-        tk.Button(bot, text="Pamata",
+        tk.Button(bot, text="↩️ Pamata",
                   font=("Arial", 9, "bold"), bg="#8e44ad", fg="white",
                   padx=6, pady=4, bd=0, cursor="hand2",
                   command=self._reset).pack(side=tk.LEFT, padx=(0, 4))
 
-
+        # Save section
         self._save_name = tk.StringVar()
         tk.Entry(bot, textvariable=self._save_name,
                  font=("Arial", 9), width=14,
@@ -755,12 +796,14 @@ class StrategyEditorWindow:
         btn.config(text=nxt, bg=ACTION_COLORS[nxt])
 
     def _fill_row(self, table_id, row_key):
+        """Ask which action, then fill the whole row."""
         self._ask_action(lambda act: self._apply_fill_row(table_id, row_key, act))
 
     def _fill_col(self, table_id, upcard):
         self._ask_action(lambda act: self._apply_fill_col(table_id, upcard, act))
 
     def _ask_action(self, callback):
+        """Small popup to pick H/S/D/R."""
         popup = tk.Toplevel(self.win)
         popup.title("Izvēlies darbību")
         popup.configure(bg="#1a1a2e")
@@ -846,7 +889,13 @@ class StrategyEditorWindow:
         self.win.destroy()
 
 
+# ──────────────────────────────────────────────────────────────────────────────
 def _compute_scale(total_players):
+    """
+    Return (scale_factor, max_per_row).
+    ≤10 players  → scale=1.0, per_row=8
+    11-18 players→ scale shrinks linearly (min 1/3), per_row grows
+    """
     if total_players <= 10:
         return 1.0, 8
     # How many extra beyond 10
@@ -858,10 +907,13 @@ def _compute_scale(total_players):
     return scale, per_row
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# TUTORIAL WINDOW
+# ──────────────────────────────────────────────────────────────────────────────
 
 TUTORIAL_SECTIONS = {
     "lv": [
-        ("Blackjack pamati", """Mērķis: dabūt roku tuvāku 21 nekā dīlerim, nepārsniedzot to.
+        ("🃏 Blackjack pamati", """Mērķis: dabūt roku tuvāku 21 nekā dīlerim, nepārsniedzot to.
 
 • Kārtis 2–10 vērtību = nominālvērtība
 • J, Q, K = 10 punkti
@@ -871,26 +923,26 @@ Dīleris vienmēr ņem kārti, kamēr ir < 17. No 17 vienmēr stāv.
 
 Blackjack = Ass + 10-vērtības kārts pirmajās 2 kārtīs."""),
 
-        ("Spēles vadība", """Hit — ņem vēl vienu kārti.
+        ("🎮 Spēles vadība", """Hit — ņem vēl vienu kārti.
 Stand — apstāties ar pašreizējo roku.
 Double Down — dubulto likmi, ņem tieši 1 kārti, tad automātiski Stand.
-Hint — parāda ko ieteiktu pamata stratēģija.
+💡 Hint — parāda ko ieteiktu pamata stratēģija.
 
 Kārtis tiek dalītas animēti. Pēc spēles nospiedi
 "Spēlēt vēlreiz" lai sāktu nākamo raundi."""),
 
-        ("Boti un stratēģijas", """Botu skaitu maini ar "Botu skaits" spinner sānjoslā (0–100).
+        ("🤖 Boti un stratēģijas", """Botu skaitu maini ar "Botu skaits" spinner sānjoslā (0–100).
 
 Katram botam var piešķirt stratēģiju:
-  Pamata    — klasiskā basic strategy (optimāla)
-  Agresīvs  — double gandrīz visur, hit agresīvi
-  Konservatīvs — stand no 13+
-  Piesardzīgs  — stand no 15+, nekad nedoubles
-  Custom    — pilnīgi pielāgojama tabula
+  🎯 Pamata    — klasiskā basic strategy (optimāla)
+  🔥 Agresīvs  — double gandrīz visur, hit agresīvi
+  🛡️ Konservatīvs — stand no 13+
+  🐢 Piesardzīgs  — stand no 15+, nekad nedoubles
+  ✏️ Custom    — pilnīgi pielāgojama tabula
 
-Nospiedi blakus dropdownam, lai atvērtu tabulas redaktoru."""),
+Nospiedi ✏️ blakus dropdownam, lai atvērtu tabulas redaktoru."""),
 
-        ("Stratēģijas redaktors", """Redaktorā redzama pilna Hard + Soft tabula.
+        ("✏️ Stratēģijas redaktors", """Redaktorā redzama pilna Hard + Soft tabula.
 
 Katru šūnu noklikšķini lai mainītu: H → S → D → R → H
   H = Hit       S = Stand
@@ -901,19 +953,19 @@ Katru šūnu noklikšķini lai mainītu: H → S → D → R → H
   Kolonnas pogas — uzstāda visu kolonnu uzreiz
 
 Saglabāt stratēģiju: ievadi nosaukumu laukā apakšā
-un nospied "Saglabāt". Stratēģija paliek starp sesijām."""),
+un nospied "💾 Saglabāt". Stratēģija paliek starp sesijām."""),
 
-        ("Auto-replay", """Auto-replay ļauj simulēt tūkstošiem spēļu sekundēs.
+        ("📊 Auto-replay", """Auto-replay ļauj simulēt tūkstošiem spēļu sekundēs.
 
 1. Ievadi spēļu skaitu laukā "Spēļu skaits"
-2. Nospied "Sākt Auto"
+2. Nospied "▶▶ Sākt Auto"
 3. Skaties progress bārā
-4. Nospied "Stop" lai apturētu jebkurā brīdī
+4. Nospied "⏹ Stop" lai apturētu jebkurā brīdī
 
 Rezultāti tiek atjaunoti reāllaikā — var redzēt
 uzvaru procentus katram botam ar katru stratēģiju."""),
 
-        ("Statistikas saglabāšana", """Nospied "Saglabāt" sānjoslā.
+        ("💾 Statistikas saglabāšana", """Nospied "💾 Saglabāt" sānjoslā.
 
 Fails tiek saglabāts Lejupielāžu mapē un satur:
   • Katra spēlētāja vārds un stratēģija
@@ -924,7 +976,7 @@ Fails tiek saglabāts Lejupielāžu mapē un satur:
 
 Tikai Auto-replay spēles tiek saglabātas failā."""),
 
-        ("Pārsaukt spēlētājus", """Sānjoslā sadaļā "Iestatījumi" ir nosaukumu lauki.
+        ("✏️ Pārsaukt spēlētājus", """Sānjoslā sadaļā "⚙️ Iestatījumi" ir nosaukumu lauki.
 
 Cilvēka spēlētāja vārds: mainiet laukā "Tavs vārds:".
 Botu vārdi: katram botam ir savs nosaukuma lauks.
@@ -935,7 +987,7 @@ Vārdi parādās:
   • Saglabātajā statistikas failā"""),
     ],
     "en": [
-        ("Blackjack Basics", """Goal: get a hand closer to 21 than the dealer without going over.
+        ("🃏 Blackjack Basics", """Goal: get a hand closer to 21 than the dealer without going over.
 
 • Cards 2–10 = face value
 • J, Q, K = 10 points
@@ -945,26 +997,26 @@ Dealer always hits until reaching 17, then always stands.
 
 Blackjack = Ace + any 10-value card in the first 2 cards."""),
 
-        ("Game Controls", """Hit — take another card.
+        ("🎮 Game Controls", """Hit — take another card.
 Stand — keep your current hand.
 Double Down — double your bet, take exactly 1 card, then auto-Stand.
-Hint — shows what basic strategy recommends.
+💡 Hint — shows what basic strategy recommends.
 
 Cards are dealt with animation. After the round press
 "Play Again" to start the next hand."""),
 
-        ("Bots & Strategies", """Change the number of bots with the "Number of bots" spinner (0–100).
+        ("🤖 Bots & Strategies", """Change the number of bots with the "Number of bots" spinner (0–100).
 
 Each bot can be assigned a strategy:
-  Basic       — classic basic strategy (optimal)
-  Aggressive  — doubles almost everywhere, hits aggressively
-  Conservative — stands from 13+
-  Cautious    — stands from 15+, never doubles
-  Custom      — fully customisable table
+  🎯 Basic       — classic basic strategy (optimal)
+  🔥 Aggressive  — doubles almost everywhere, hits aggressively
+  🛡️ Conservative — stands from 13+
+  🐢 Cautious    — stands from 15+, never doubles
+  ✏️ Custom      — fully customisable table
 
-Press next to the dropdown to open the table editor."""),
+Press ✏️ next to the dropdown to open the table editor."""),
 
-        ("Strategy Editor", """The editor shows the full Hard + Soft strategy table.
+        ("✏️ Strategy Editor", """The editor shows the full Hard + Soft strategy table.
 
 Click any cell to cycle: H → S → D → R → H
   H = Hit       S = Stand
@@ -975,19 +1027,19 @@ Quick-fill buttons:
   Column buttons — set the entire column at once
 
 Save a strategy: type a name in the field at the bottom
-and press "Save". The strategy persists between sessions."""),
+and press "💾 Save". The strategy persists between sessions."""),
 
-        ("Auto-replay", """Auto-replay lets you simulate thousands of games in seconds.
+        ("📊 Auto-replay", """Auto-replay lets you simulate thousands of games in seconds.
 
 1. Enter the number of games in "Number of games"
-2. Press "Start Auto-replay"
+2. Press "▶▶ Start Auto-replay"
 3. Watch the progress bar
-4. Press "Stop" to stop at any time
+4. Press "⏹ Stop" to stop at any time
 
 Results update in real-time — you can see win percentages
 for each bot with each strategy."""),
 
-        ("Saving Statistics", """Press "Save" in the sidebar.
+        ("💾 Saving Statistics", """Press "💾 Save" in the sidebar.
 
 Files are saved to your Downloads folder and contain:
   • Each player's name and strategy
@@ -998,7 +1050,7 @@ Files are saved to your Downloads folder and contain:
 
 Only Auto-replay games are saved to file."""),
 
-        ("Renaming Players", """Name fields are in the sidebar under "Settings".
+        ("✏️ Renaming Players", """Name fields are in the sidebar under "⚙️ Settings".
 
 Human player name: change in the "Your name" field.
 Bot names: each bot has its own name field.
@@ -1103,7 +1155,7 @@ class BlackjackGUI:
         # Settings vars
         self.num_decks   = tk.IntVar(value=6)
         self.num_bots    = tk.IntVar(value=1)
-        self.anim_speed  = tk.IntVar(value=300)
+        self.anim_speed  = tk.IntVar(value=300)   # ms base
         self.human_plays = tk.BooleanVar(value=True)  # human player on/off
 
         # Auto-replay
@@ -1168,21 +1220,26 @@ class BlackjackGUI:
 
         self.create_menu_screen()
 
-
+    # ──────────────────────────────────────────────
+    # LANGUAGE TOGGLE
+    # ──────────────────────────────────────────────
     def _set_language(self, lang: str):
         global _current_lang
         _current_lang = lang
         self._lang.set(lang)
 
+        # Menu: safe to destroy and recreate (no game state lives there)
         if hasattr(self, 'menu_frame') and self.menu_frame.winfo_exists():
             self.menu_frame.destroy()
             del self.menu_frame
             self.create_menu_screen()
             return
 
+        # Game screen: ONLY update widget text — never destroy or recreate frames
         for entry in getattr(self, '_lang_widgets', []):
             try:
                 if len(entry) == 3:
+                    # Tab button: (widget, key, icon) — keep icon prefix
                     widget, key, icon = entry
                     if widget.winfo_exists():
                         widget.config(text=f"{icon}\n{T(key)}")
@@ -1193,6 +1250,7 @@ class BlackjackGUI:
             except Exception:
                 pass
 
+        # Update lang-toggle button highlights in the game screen
         for code, btn in getattr(self, '_lang_btn_refs', []):
             try:
                 if btn.winfo_exists():
@@ -1202,6 +1260,7 @@ class BlackjackGUI:
             except Exception:
                 pass
 
+        # Refresh stats labels (dealer/draws text includes translated prefix)
         if hasattr(self, 'dealer_wins_label'):
             try:
                 self.update_stats()
@@ -1209,9 +1268,10 @@ class BlackjackGUI:
                 pass
 
     def _make_lang_toggle(self, parent, bg):
+        """Language buttons 🇱🇻 / EN. Saves refs so _set_language can update them."""
         frame = tk.Frame(parent, bg=bg)
         refs = []
-        for code, label in [("lv", "LV"), ("en", "EN")]:
+        for code, label in [("lv", "🇱🇻"), ("en", "EN")]:
             btn = tk.Button(
                 frame, text=label, font=("Arial", 12, "bold"),
                 bg=bg, fg="white", bd=0, padx=6, pady=2,
@@ -1227,10 +1287,14 @@ class BlackjackGUI:
         return frame
 
     def _register_lang(self, widget, key: str):
+        """Register a widget so _set_language() can update its text."""
         if not hasattr(self, '_lang_widgets'):
             self._lang_widgets = []
         self._lang_widgets.append((widget, key))
 
+    # ──────────────────────────────────────────────
+    # MENU
+    # ──────────────────────────────────────────────
     def create_menu_screen(self):
         self.menu_frame = tk.Frame(self.root, bg=self.bg_menu)
         self.menu_frame.pack(fill=tk.BOTH, expand=True)
@@ -1268,7 +1332,9 @@ class BlackjackGUI:
         self.root.configure(bg=self.bg_table)
         self.root.after(80, self.create_game_screen)
 
-
+    # ──────────────────────────────────────────────
+    # GAME SCREEN
+    # ──────────────────────────────────────────────
     def create_game_screen(self):
         # Fresh widget registry for this screen
         self._lang_widgets = []
@@ -1277,14 +1343,14 @@ class BlackjackGUI:
         self.game_frame = tk.Frame(self.root, bg=self.bg_table)
         self.game_frame.pack(fill=tk.BOTH, expand=True)
 
-        #Left: play area
+        # ── Left: play area ──
         self.table_frame = tk.Frame(self.game_frame, bg=self.bg_table)
         self.table_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        # Right: tabbed panel
+        # ── Right: tabbed panel ──
         self._build_tabbed_panel()
 
-        #Top bar
+        # ── Top bar ──
         top_bar = tk.Frame(self.table_frame, bg=self.bg_table)
         top_bar.pack(fill=tk.X, padx=16, pady=(10, 0))
 
@@ -1314,7 +1380,7 @@ class BlackjackGUI:
         exit_btn.pack(side=tk.LEFT)
         self._register_lang(exit_btn, "exit_btn")
 
-        #Scrollable felt area (dealer + players)
+        # ── Scrollable felt area (dealer + players) ──
         scroll_outer = tk.Frame(self.table_frame, bg=self.felt)
         scroll_outer.pack(fill=tk.BOTH, expand=True, padx=16, pady=(8, 0))
 
@@ -1378,7 +1444,7 @@ class BlackjackGUI:
 
 
 
-        # Bottom controls bar
+        # ── Bottom controls bar ──
         ctrl_bar = tk.Frame(self.table_frame, bg=self.bg_table)
         ctrl_bar.pack(fill=tk.X, padx=16, pady=(0, 8))
 
@@ -1423,9 +1489,11 @@ class BlackjackGUI:
 
         self.new_round()
 
+    # ──────────────────────────────────────────────
     # TABBED PANEL  — fully scrollable tabs
-
+    # ──────────────────────────────────────────────
     def _build_tabbed_panel(self):
+        """Right-hand tabbed panel: Settings / Bots / Stats / Auto — all scrollable."""
         PANEL_W = 285
 
         outer = tk.Frame(self.game_frame, bg=self.sb_bg, width=PANEL_W)
@@ -1442,7 +1510,7 @@ class BlackjackGUI:
 
         # Stable internal IDs — never translated, used as dict keys throughout
         TAB_IDS = ["settings", "bots", "stats", "auto"]
-        TAB_ICONS = ["Settings", "Bots", "Strats", "Auto"]
+        TAB_ICONS = ["⚙", "🤖", "🏆", "⚡"]
         TAB_KEYS = ["tab_settings", "tab_bots", "tab_stats", "tab_auto"]
 
         self._tab_frames       = {}   # id → inner Frame
@@ -1542,7 +1610,7 @@ class BlackjackGUI:
 
         switch_tab(TAB_IDS[0])
 
-    #helpers
+    # ── helpers ──
     def _sb_label(self, parent, text, small=False):
         tk.Label(parent, text=text, font=("Arial", 9 if small else 10),
                  bg=self.sb_bg, fg="#9ca3af", anchor=tk.W).pack(fill=tk.X, pady=(6, 1))
@@ -1556,7 +1624,7 @@ class BlackjackGUI:
                   cursor="hand2", relief=tk.FLAT, activebackground=color,
                   command=cmd).pack(fill=tk.X, pady=(3, 0))
 
-    # Settings tab
+    # ── Settings tab ──
     def _build_tab_settings(self, f):
         # All labels stored so _set_language can update them
         _lbl_decks = tk.Label(f, text=T("s_decks"), font=("Arial", 9),
@@ -1671,14 +1739,14 @@ class BlackjackGUI:
                                           bg=self.sb_bg, fg=self.success, wraplength=230)
         self.save_status_label.pack(anchor=tk.W, pady=(3, 0))
 
-    #Bots tab
+    # ── Bots tab ──
     def _build_tab_bots(self, f):
         self._bot_strat_buttons_frame = tk.Frame(f, bg=self.sb_bg)
         self._bot_strat_buttons_frame.pack(fill=tk.X, expand=True)
 
-    #Stats tab
+    # ── Stats tab ──
     def _build_tab_stats(self, f):
-        #Summary row: Dealer / Draws
+        # ── Summary row: Dealer / Draws ──
         summary = tk.Frame(f, bg=self.sb_bg)
         summary.pack(fill=tk.X)
 
@@ -1693,7 +1761,7 @@ class BlackjackGUI:
 
         self._sb_sep(f)
 
-        #Column headers
+        # ── Column headers ──
         hdr = tk.Frame(f, bg="#1f2937")
         hdr.pack(fill=tk.X, pady=(0, 2))
         _player_col_lbl = tk.Label(hdr, text=T("st_player_col"), font=("Arial", 8, "bold"),
@@ -1707,10 +1775,10 @@ class BlackjackGUI:
             _col_lbl.grid(row=0, column=ci+1, sticky="e", padx=1)
             self._register_lang(_col_lbl, key)
 
-        # Human player row
+        # ── Human player row ──
         self._stats_player_row = self._make_stats_row(f)
 
-        # Bot rows container (rebuilt on new_round)
+        # ── Bot rows container (rebuilt on new_round) ──
         self._stats_bots_frame = tk.Frame(f, bg=self.sb_bg)
         self._stats_bots_frame.pack(fill=tk.X)
         self._stats_bot_rows: list = []   # list of (name_lbl, win_lbl, lose_lbl, draw_lbl, pct_lbl)
@@ -1734,7 +1802,7 @@ class BlackjackGUI:
         self._register_lang(_clear_btn, "st_clear")
 
     def _make_stats_row(self, parent, name="—"):
-
+        """Create one W/L/D/% row, return tuple of labels."""
         row = tk.Frame(parent, bg=self.sb_bg)
         row.pack(fill=tk.X, pady=1)
         name_lbl = tk.Label(row, text=name, font=("Arial", 8, "bold"),
@@ -1755,6 +1823,7 @@ class BlackjackGUI:
         return (name_lbl, win_lbl, lose_lbl, draw_lbl, pct_lbl)
 
     def _refresh_stats_bot_rows(self):
+        """Rebuild bot rows in Stats tab to match current bot count."""
         frame = self._stats_bots_frame
         for w in frame.winfo_children():
             w.destroy()
@@ -1767,7 +1836,7 @@ class BlackjackGUI:
             self._stats_bots_frame.pack_configure(fill=tk.X)
             self._stats_bot_rows.append(row_lbls)
 
-    #Auto tab
+    # ── Auto tab ──
     def _build_tab_auto(self, f):
         _a_games_lbl = tk.Label(f, text=T("a_games"), font=("Arial", 9),
                  bg=self.sb_bg, fg="#9ca3af", anchor=tk.W)
@@ -1801,8 +1870,9 @@ class BlackjackGUI:
                                       bg=self.sb_bg, fg="#60a5fa")
         self._progress_lbl.pack(anchor=tk.W, pady=(3, 0))
 
-# SIDEBAR (legacy alias — no longer used, kept for compat)
-
+    # ──────────────────────────────────────────────
+    # SIDEBAR (legacy alias — no longer used, kept for compat)
+    # ──────────────────────────────────────────────
     def _build_sidebar(self):
         pass  # replaced by _build_tabbed_panel
 
@@ -1810,6 +1880,7 @@ class BlackjackGUI:
         pass  # just a visual toggle; applied on next round via _apply_settings
 
     def _refresh_bot_strategy_buttons(self):
+        """Rebuild the per-bot name + preset selector rows in the sidebar."""
         frame = self._bot_strat_buttons_frame
         for w in frame.winfo_children():
             w.destroy()
@@ -1824,7 +1895,7 @@ class BlackjackGUI:
         while len(self.bot_strategies) < n:
             self.bot_strategies.append(BotStrategy())
         while len(self._bot_preset_vars) < n:
-            self._bot_preset_vars.append(tk.StringVar(value="Pamata"))
+            self._bot_preset_vars.append(tk.StringVar(value="🎯 Pamata"))
         while len(self.bot_names) < n:
             self.bot_names.append(tk.StringVar(value=f"Bot {len(self.bot_names)+1}"))
 
@@ -1864,19 +1935,19 @@ class BlackjackGUI:
                       ).pack(side=tk.LEFT, padx=(3, 0))
 
     def _apply_preset(self, bot_index: int, preset_name: str):
-
+        """Apply a named preset to a bot's strategy."""
         while len(self.bot_strategies) <= bot_index:
             self.bot_strategies.append(BotStrategy())
-        if preset_name != "Custom":
+        if preset_name != "✏️ Custom":
             self.bot_strategies[bot_index] = _make_preset(preset_name)
 
     def _open_strategy_editor(self, bot_index: int):
-
+        """Open the full strategy editor popup for the given bot."""
         while len(self.bot_strategies) <= bot_index:
             self.bot_strategies.append(BotStrategy())
         # Switch preset label to Custom
         if hasattr(self, '_bot_preset_vars') and bot_index < len(self._bot_preset_vars):
-            self._bot_preset_vars[bot_index].set("Custom")
+            self._bot_preset_vars[bot_index].set("✏️ Custom")
         StrategyEditorWindow(
             self.root,
             self.bot_strategies[bot_index],
@@ -1906,8 +1977,9 @@ class BlackjackGUI:
         self._autoreplay_remaining = 0
         self.new_round()
 
+    # ──────────────────────────────────────────────
     # PLAYER LAYOUT  (adaptive scaling)
-
+    # ──────────────────────────────────────────────
     def create_player_frames(self):
         for w in self.players_area.winfo_children():
             w.destroy()
@@ -2005,8 +2077,9 @@ class BlackjackGUI:
         self.dealer_cards_frame._ch  = 92
         self.dealer_cards_frame._cfs = 20
 
+    # ──────────────────────────────────────────────
     # CARD DRAWING & ANIMATION
-
+    # ──────────────────────────────────────────────
     def _card_size(self, frame):
         """Get card dimensions from parent frame metadata."""
         w   = getattr(frame, '_cw',  62)
@@ -2091,6 +2164,7 @@ class BlackjackGUI:
             self._animate_card_in(cf, cf._hidden_label, text, color, fs)
 
     def draw_card(self, card: Card, parent_frame, hidden=False):
+        """Instant (non-animated) draw."""
         w, h, fs = self._card_size(parent_frame)
         cf = tk.Frame(parent_frame, bg=self.card_bg,
                       width=w, height=h,
@@ -2109,8 +2183,9 @@ class BlackjackGUI:
             cf._card = card
             cf._fs   = fs
 
+    # ──────────────────────────────────────────────
     # DISPLAY UPDATE
-
+    # ──────────────────────────────────────────────
     def clear_cards(self):
         for w in self.dealer_cards_frame.winfo_children(): w.destroy()
         if self.player_cards_frame:
@@ -2173,7 +2248,10 @@ class BlackjackGUI:
             tk.Frame(bar_outer, bg=self.accent, width=bar_w).pack(side=tk.LEFT, fill=tk.Y)
             tk.Label(row, text=f"{pct:.0f}%", font=("Arial", 8),
                      bg=self.sb_bg, fg=self.success, width=4, anchor=tk.E).pack(side=tk.RIGHT)
+
+    # ──────────────────────────────────────────────
     # ACTIVE PLAYER HIGHLIGHT
+    # ──────────────────────────────────────────────
     def set_active_player(self, idx):
         if self.player_frame:
             self.player_frame.config(highlightbackground=self.accent, highlightthickness=2)
@@ -2193,7 +2271,9 @@ class BlackjackGUI:
         self._refresh_stats_bot_rows()
         self.update_stats()
 
+    # ──────────────────────────────────────────────
     # NEW ROUND  (animated deal OR silent autoreplay)
+    # ──────────────────────────────────────────────
     def new_round(self):
         self.playing = True
         self.result_label.config(text="")
@@ -2208,14 +2288,16 @@ class BlackjackGUI:
 
         while len(self.bot_wins) < num_bots:
             self.bot_wins.append(0)
-
+        # Ensure a strategy exists for every bot
         while len(self.bot_strategies) < num_bots:
             self.bot_strategies.append(BotStrategy())
         self._refresh_bot_strategy_buttons()
 
+        # Always use animated path (autoreplay bypasses new_round entirely)
         self._run_round_animated(human, num_bots)
 
     def _run_round_animated(self, human, num_bots):
+        """Normal animated deal path."""
         self.create_player_frames()
         self.update_bot_wins_labels()
 
@@ -2285,12 +2367,13 @@ class BlackjackGUI:
                 self.result_label.config(text="Tu: Blackjack! (Auto-stand)")
                 self.stand()
         else:
-            # No human bots play immediately
+            # No human — bots play immediately
             self.disable_buttons()
             self.play_bots_sequentially()
 
-
+    # ──────────────────────────────────────────────
     # BUTTONS
+    # ──────────────────────────────────────────────
     def enable_buttons(self):
         if not self.human_plays.get():
             self.disable_buttons()
@@ -2306,7 +2389,9 @@ class BlackjackGUI:
         for b in (self.hit_btn, self.stand_btn, self.double_btn, self.hint_btn):
             b.config(state=tk.DISABLED)
 
+    # ──────────────────────────────────────────────
     # PLAYER ACTIONS
+    # ──────────────────────────────────────────────
     def hit(self):
         if not self.playing or not self.player: return
         card = self.deck.deal()
@@ -2348,11 +2433,12 @@ class BlackjackGUI:
         can_dbl  = len(self.player.cards) == 2
         action   = Strategy.get_action(total, upcard, self.player.can_split(),
                                        can_dbl, self.player.is_soft(), self.player)
-        hints = {'H': 'Hit', 'S': 'Stand', 'D': 'Double Down', 'SP': 'Split'}
+        hints = {'H': '💡 Hit', 'S': '💡 Stand', 'D': '💡 Double Down', 'SP': '💡 Split'}
         messagebox.showinfo("Padoms", hints.get(action, '?'))
 
+    # ──────────────────────────────────────────────
     # BOT PLAY
-
+    # ──────────────────────────────────────────────
     def _speed(self):
         return max(10, self.anim_speed.get())
 
@@ -2412,8 +2498,9 @@ class BlackjackGUI:
 
         self.root.after(self._speed() // 2, make_move)
 
+    # ──────────────────────────────────────────────
     # DEALER PLAY
-
+    # ──────────────────────────────────────────────
     def dealer_play_animated(self):
         if not self.playing: return
         self.disable_buttons()
@@ -2446,8 +2533,9 @@ class BlackjackGUI:
 
         self.root.after(self._speed(), dealer_hit)
 
+    # ──────────────────────────────────────────────
     # EVALUATE
-
+    # ──────────────────────────────────────────────
     def dealer_blackjack(self):
         self.update_display(hide_dealer=False)
         self.disable_buttons()
@@ -2519,8 +2607,9 @@ class BlackjackGUI:
         self.update_stats()
         self.replay_btn.pack(pady=5)
 
+    # ──────────────────────────────────────────────
     # AUTO-REPLAY  (threaded — UI never freezes)
-
+    # ──────────────────────────────────────────────
     def start_autoreplay(self):
         try:
             n = self.autoreplay_count.get()
@@ -2587,6 +2676,11 @@ class BlackjackGUI:
         self.root.after(200, self._ar_poll_queue)
 
     def _autoreplay_coordinator(self, settings: dict):
+        """
+        Runs in a background thread. Splits work across CPU cores using
+        multiprocessing.Pool, collects results, and pushes progress to UI queue.
+        Never touches tkinter widgets.
+        """
         n           = settings["n"]
         num_decks   = settings["num_decks"]
         num_bots    = settings["num_bots"]
@@ -2631,6 +2725,8 @@ class BlackjackGUI:
                     })
                     return
                 async_result.wait(timeout=0.2)
+                # Push intermediate "still running" progress ping
+                # (we can't get partial results from pool.map — send a heartbeat)
                 self._ar_queue.put({"heartbeat": True, "total": n})
 
             results = async_result.get()
@@ -2690,6 +2786,12 @@ class BlackjackGUI:
         })
 
     def _ar_poll_queue(self):
+        """
+        Called from the main thread every 200ms.
+        The coordinator either sends heartbeats (during computation) or
+        a single final result message when done.
+        Never blocks.
+        """
         try:
             msg = None
             while True:
@@ -2750,8 +2852,11 @@ class BlackjackGUI:
         """Signal the worker thread to stop."""
         self._ar_stop_event.set()
         self._autoreplay_running = False
+        # UI will update on next poll tick when it sees "stopped"
 
+    # ──────────────────────────────────────────────
     # STATS
+    # ──────────────────────────────────────────────
     def update_stats(self):
         pname = self.player_name.get() or T("default_player")
         self.dealer_wins_label.config(text=T("st_dealer") + str(self.dealer_wins))
@@ -2823,10 +2928,12 @@ class BlackjackGUI:
             self.save_status_label.config(text=T("d_reset_done"))
 
     def _log_game(self, entry: dict):
+        """Log a game result (normal play only — autoreplay uses thread-local counters)."""
         self.game_number += 1
         self.game_log.append({"game": self.game_number, "results": entry})
 
     def save_stats_to_file(self):
+        """Save Auto-replay statistics to a .txt file in Downloads. Resets stats after saving."""
         if not self._ar_per_player:
             messagebox.showinfo(T("d_no_data"),
                                 {"lv": "Nav Auto-replay spēļu! Vispirms palaid Auto-replay.",
@@ -2924,7 +3031,7 @@ class BlackjackGUI:
         try:
             with open(fpath, "w", encoding="utf-8") as f:
                 f.write("\n".join(lines))
-            # Reset all stats after saving
+            # ── Reset all stats after saving ──
             self.player_wins = 0
             self.dealer_wins = 0
             self.bot_wins    = [0] * len(self.bot_wins)
@@ -2939,6 +3046,9 @@ class BlackjackGUI:
             messagebox.showerror(T("d_error"), str(ex))
 
     def save_stats_to_csv(self):
+        """Eksportē Auto-replay statistiku uz .csv failu Lejupielāžu mapē.
+        CSV satur vienu rindu uz spēlētāju ar: vārds, stratēģija, uzvaras, zaudējumi,
+        neizšķirts, kopā, uzv%. Ideāli piemērots korelācijas analīzei Bruno kalkulatorā."""
         if not self._ar_per_player:
             messagebox.showinfo(T("d_no_data"),
                                 {"lv": "Nav Auto-replay spēļu! Vispirms palaid Auto-replay.",
@@ -3022,6 +3132,7 @@ class BlackjackGUI:
             messagebox.showerror(T("d_error"), str(ex))
 
     def save_stats_to_sqlite(self):
+        """Save current statistics to a SQLite database file."""
         if not self.game_log and not self._ar_per_player and self.game_number == 0:
             messagebox.showinfo(T("d_no_data"), T("d_no_games"))
             return
@@ -3150,12 +3261,14 @@ class BlackjackGUI:
             conn.commit()
             conn.close()
 
-            self.save_status_label.config(text=f"SQLite")
+            self.save_status_label.config(text=f"✔ SQLite")
             messagebox.showinfo(T("d_sqlite_saved"), T("d_sqlite_msg") + db_path)
         except Exception as ex:
             messagebox.showerror(T("d_error"), str(ex))
 
     def save_stats_to_excel(self):
+        """Export Auto-replay stats to .xlsx in Downloads — pure stdlib, no pip needed.
+        Stats summary on top, full game-by-game log below. Resets stats after saving."""
         if not self._ar_per_player:
             messagebox.showinfo(T("d_no_data"),
                                 {"lv": "Nav Auto-replay spēļu! Vispirms palaid Auto-replay.",
@@ -3198,7 +3311,9 @@ class BlackjackGUI:
 
         result_lbl = {"win": T("f_win_r"), "lose": T("f_lose_r"), "draw": T("f_draw_r")}
 
+        # ═══════════════════════════════════════════════════════════
         # Pure-stdlib .xlsx writer  (an .xlsx is a ZIP of XML parts)
+        # ═══════════════════════════════════════════════════════════
         def _esc(s):
             return (str(s).replace("&","&amp;").replace("<","&lt;")
                     .replace(">","&gt;").replace('"',"&quot;"))
@@ -3219,6 +3334,10 @@ class BlackjackGUI:
                 _ss_map[t] = len(_ss); _ss.append(t)
             return _ss_map[t]
 
+        # Style indices:
+        # 0=normal  1=hdr(navy/white/bold)  2=bold  3=pct%
+        # 4=win-green  5=lose-red  6=draw-yellow  7=alt-row  8=total-hdr
+        # 9=section-hdr(dark-grey bg)  10=title
         def c_str(ref, val, s=0):
             return f'<c r="{ref}" t="s" s="{s}"><v>{si(val)}</v></c>'
         def c_num(ref, val, s=0):
@@ -3229,17 +3348,22 @@ class BlackjackGUI:
             h = f' ht="{ht}" customHeight="1"' if ht else ""
             return f'<row r="{ri}"{h}>{"".join(cells)}</row>'
 
+        # ── Single sheet: stats on top, log below ──
         def build_main_sheet():
             rows = []
+            # ── Section A: Title ──
             rows.append(rowx(1, [c_str("A1", "CardLab \u2014 Blackjack Statistics", 10)], ht=30))
             rows.append(rowx(2, [c_str("A2", f"{T('xl_saved_at')}: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}", 2)]))
             rows.append(rowx(3, [c_str("A3", f"{T('xl_total_games')}: {self.game_number:,}", 2)]))
-            rows.append(rowx(4, []))
+            rows.append(rowx(4, []))   # spacer
 
+            # ── Section B: Summary header ──
             sum_hdrs = [T("xl_player"), T("xl_strategy"),
                         T("xl_wins"), T("xl_losses"), T("xl_draws"),
                         T("xl_total"), T("xl_winpct")]
             rows.append(rowx(5, [c_str(cref(5,i+1), h, 1) for i,h in enumerate(sum_hdrs)], ht=18))
+
+            # ── Section B: Data rows ──
             ds = 6
             for ri2, (pname, counts) in enumerate(per_player.items()):
                 w = counts.get("win",0); l = counts.get("lose",0); d = counts.get("draw",0)
@@ -3251,6 +3375,7 @@ class BlackjackGUI:
                          c_fml(cref(r,7), f"C{r}/F{r}" if t else "0", 3)]
                 rows.append(rowx(r, cells))
 
+            # ── Section B: Totals row ──
             n = len(per_player); tr = ds+n; r1 = ds; r2 = ds+n-1
             tc = [c_str(cref(tr,1), T("xl_total"), 8), c_str(cref(tr,2), "", 8),
                   c_fml(cref(tr,3), f"SUM(C{r1}:C{r2})" if n else "0", 8),
@@ -3260,13 +3385,13 @@ class BlackjackGUI:
                   c_fml(cref(tr,7), f"C{tr}/F{tr}" if n else "0", 8)]
             rows.append(rowx(tr, tc, ht=18))
 
-            # Spacer rows
+            # ── Spacer rows ──
             sep1 = tr + 1
             sep2 = tr + 2
             rows.append(rowx(sep1, []))
             rows.append(rowx(sep2, []))
 
-            #Section C: Game Log header
+            # ── Section C: Game Log header (note: auto-replay has no per-game log) ──
             log_start = tr + 3
             log_hdr_label = {"lv": "SPĒĻU ŽURNĀLS — Auto-replay kopsavilkums",
                               "en": "GAME LOG — Auto-replay summary"}.get(_current_lang, T("xl_gamelog"))
@@ -3426,7 +3551,7 @@ class BlackjackGUI:
                 zf.writestr("xl/sharedStrings.xml",          shared)
                 zf.writestr("xl/worksheets/sheet1.xml",      sheet)
 
-            # Reset all stats after saving
+            # ── Reset all stats after saving ──
             self.player_wins = 0
             self.dealer_wins = 0
             self.bot_wins    = [0] * len(self.bot_wins)
@@ -3441,7 +3566,9 @@ class BlackjackGUI:
         except Exception as ex:
             messagebox.showerror(T("d_error"), str(ex))
 
-
+    # ──────────────────────────────────────────────
+    # EXIT
+    # ──────────────────────────────────────────────
     def exit_game(self):
         self._autoreplay_running = False
         self.game_frame.destroy()
@@ -3452,10 +3579,13 @@ class BlackjackGUI:
     def open_tutorial(self):
         TutorialWindow(self.root)
 
-
+    # ──────────────────────────────────────────────
+    # STRATEGY PERSISTENCE
+    # ──────────────────────────────────────────────
     _STRAT_FILE = os.path.join(os.path.expanduser("~"), "cardlab_strategies.txt")
 
     def _load_saved_strategies(self):
+        """Load saved strategies from disk. Format: NAME|hard_csv|soft_csv"""
         self.saved_strategies = {}
         if not os.path.exists(self._STRAT_FILE):
             return
@@ -3470,6 +3600,7 @@ class BlackjackGUI:
                         continue
                     name, hard_s, soft_s = parts
                     s = BotStrategy()
+                    # hard: row;row;... each row = "total:up=act,up=act,..."
                     for row_s in hard_s.split(";"):
                         if ":" not in row_s: continue
                         tot_s, cells = row_s.split(":", 1)
@@ -3493,6 +3624,7 @@ class BlackjackGUI:
             pass
 
     def _persist_saved_strategies(self):
+        """Save all named strategies to disk."""
         try:
             lines = ["# CardLab saved strategies"]
             for name, s in self.saved_strategies.items():
@@ -3510,7 +3642,10 @@ class BlackjackGUI:
         except Exception:
             pass
 
+
+# ──────────────────────────────────────────────────────────────────────────────
 def main():
+    # Required for multiprocessing on Windows (freeze_support for PyInstaller too)
     mp.freeze_support()
     root = tk.Tk()
     app = BlackjackGUI(root)
